@@ -1,0 +1,3 @@
+[submodule "third_party/zig-files-hash"]
+	path = third_party/zig-files-hash
+	url = https://github.com/Preeternal/zig-files-hash.git

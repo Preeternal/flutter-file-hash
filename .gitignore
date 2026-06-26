@@ -1,0 +1,44 @@
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# Flutter generated files
+**/GeneratedPluginRegistrant.*
+**/generated_plugin_registrant.*
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Native build outputs
+.cxx/
+cmake-build-*/
+DerivedData/
+Pods/
+*.xcworkspace/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# Zig build outputs
+.zig-cache/
+zig-out/
+
+# Generated native binaries / prebuilts
+third_party/zig-files-hash-prebuilt/
+native/build/
+native/out/

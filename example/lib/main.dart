@@ -1,71 +1,41 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter_file_hash/flutter_file_hash.dart' as flutter_file_hash;
+import 'package:flutter_file_hash/flutter_file_hash.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late int sumResult;
-  late Future<int> sumAsyncResult;
-
-  @override
-  void initState() {
-    super.initState();
-    sumResult = flutter_file_hash.sum(1, 2);
-    sumAsyncResult = flutter_file_hash.sumAsync(3, 4);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 25);
-    const spacerSmall = SizedBox(height: 10);
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
-        appBar: AppBar(title: const Text('Native Packages')),
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const .all(10),
-            child: Column(
+        appBar: AppBar(title: const Text('flutter_file_hash')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'WIP: Zig streaming hasher',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'The example is waiting for the native Zig asset build hook. '
+              'Current Dart API already models the stream-only C ABI path.',
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                const Text(
-                  'This calls a native function through FFI that is shipped as source in the package. '
-                  'The native code is built as part of the Flutter Runner build.',
-                  style: textStyle,
-                  textAlign: .center,
-                ),
-                spacerSmall,
-                Text(
-                  'sum(1, 2) = $sumResult',
-                  style: textStyle,
-                  textAlign: .center,
-                ),
-                spacerSmall,
-                FutureBuilder<int>(
-                  future: sumAsyncResult,
-                  builder: (BuildContext context, AsyncSnapshot<int> value) {
-                    final displayValue = (value.hasData)
-                        ? value.data
-                        : 'loading';
-                    return Text(
-                      'await sumAsync(3, 4) = $displayValue',
-                      style: textStyle,
-                      textAlign: .center,
-                    );
-                  },
-                ),
+                for (final algorithm in HashAlgorithm.values)
+                  Chip(label: Text(algorithm.label)),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

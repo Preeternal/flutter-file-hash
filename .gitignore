@@ -24,6 +24,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Temporary project notes
+docs/tmp-*
+docs/**/tmp-*
+
 # Native build outputs
 .cxx/
 cmake-build-*/

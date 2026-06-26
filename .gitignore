@@ -1,28 +1,44 @@
-# Dart / Flutter
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+Thumbs.db
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter / Dart / Pub
+# Libraries should not include pubspec.lock.
+/pubspec.lock
+**/doc/api/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
-build/
-coverage/
+/build/
+/coverage/
 
 # Flutter generated files
 **/GeneratedPluginRegistrant.*
 **/generated_plugin_registrant.*
 
-# IDEs
-.idea/
-.vscode/
-*.iml
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+# Not supported in the initial native-only package scope
+example/web/
 
 # Temporary project notes
 docs/tmp-*
@@ -33,8 +49,6 @@ docs/**/tmp-*
 cmake-build-*/
 DerivedData/
 Pods/
-*.xcworkspace/
-*.xcodeproj/project.xcworkspace/
 *.xcodeproj/xcuserdata/
 *.xcuserstate
 

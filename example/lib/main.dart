@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_file_hash/flutter_file_hash.dart';
 
 void main() {
@@ -64,6 +64,10 @@ InputDecorationTheme _inputTheme(Brightness brightness) {
     isDense: true,
   );
 }
+
+const MethodChannel _androidFilePickerChannel = MethodChannel(
+  'flutter_file_hash_example/file_picker',
+);
 
 class HashDemoPage extends StatefulWidget {
   const HashDemoPage({super.key});
@@ -524,37 +528,61 @@ class _HashDemoPageState extends State<HashDemoPage> {
     };
   }
 
+  Future<_PickedFile?> _pickFileSelectorFile() async {
+    final file = await openFile();
+    if (file == null) {
+      return null;
+    }
+
+    final size = await file.length();
+    final name = file.name.isEmpty ? _basename(file.path) : file.name;
+
+    return _PickedFile(
+      name: name,
+      hashPath: file.path,
+      displayPath: file.path,
+      size: size,
+      isUri: false,
+    );
+  }
+
+  Future<_PickedFile?> _pickAndroidFile() async {
+    final result = await _androidFilePickerChannel
+        .invokeMapMethod<String, Object?>('pickFile');
+    if (result == null) {
+      return null;
+    }
+
+    final uri = result['uri'] as String?;
+    if (uri == null || uri.isEmpty) {
+      _showMessage('Picker did not return a readable URI');
+      return null;
+    }
+
+    final name = result['name'] as String?;
+    final size = result['size'];
+
+    return _PickedFile(
+      name: name == null || name.isEmpty ? uri : name,
+      hashPath: uri,
+      displayPath: uri,
+      size: size is int && size > 0 ? size : 0,
+      isUri: true,
+    );
+  }
+
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        allowMultiple: false,
-        type: FileType.any,
-        withData: false,
-        withReadStream: false,
-      );
+      final pickedFile = Platform.isAndroid
+          ? await _pickAndroidFile()
+          : await _pickFileSelectorFile();
 
-      if (!mounted || result == null || result.files.isEmpty) {
-        return;
-      }
-
-      final file = result.files.single;
-      final androidUri = file.identifier?.startsWith('content://') ?? false;
-      final hashPath = Platform.isAndroid && androidUri
-          ? file.identifier
-          : file.path ?? file.identifier;
-
-      if (hashPath == null || hashPath.isEmpty) {
-        _showMessage('Picker did not return a readable path');
+      if (!mounted || pickedFile == null) {
         return;
       }
 
       setState(() {
-        _pickedFile = _PickedFile(
-          name: file.name,
-          hashPath: hashPath,
-          displayPath: file.identifier ?? file.path ?? hashPath,
-          size: file.size,
-        );
+        _pickedFile = pickedFile;
         _fileHash = '';
         _fileElapsedMs = null;
         _fileStatus = null;
@@ -585,12 +613,19 @@ class _HashDemoPageState extends State<HashDemoPage> {
 
     try {
       final started = DateTime.now();
-      final digest = await fileHash(
-        pickedFile.hashPath,
-        algorithm: _selectedAlgorithm,
-        hashOptions: _buildHashOptions(),
-        cancellationToken: controller.token,
-      );
+      final digest = pickedFile.isUri
+          ? await uriHash(
+              Uri.parse(pickedFile.hashPath),
+              algorithm: _selectedAlgorithm,
+              hashOptions: _buildHashOptions(),
+              cancellationToken: controller.token,
+            )
+          : await fileHash(
+              pickedFile.hashPath,
+              algorithm: _selectedAlgorithm,
+              hashOptions: _buildHashOptions(),
+              cancellationToken: controller.token,
+            );
       final elapsed = DateTime.now().difference(started).inMilliseconds;
 
       if (!mounted) {
@@ -1149,7 +1184,7 @@ class _FileDetails extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         SelectableText(
-          '${_formatBytes(file.size)} - ${file.displayPath}',
+          '${_fileSizeLabel(file.size)} - ${file.displayPath}',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: palette.muted),
@@ -1267,12 +1302,14 @@ class _PickedFile {
     required this.hashPath,
     required this.displayPath,
     required this.size,
+    required this.isUri,
   });
 
   final String name;
   final String hashPath;
   final String displayPath;
   final int size;
+  final bool isUri;
 }
 
 class _BenchmarkResult {
@@ -1348,6 +1385,17 @@ String _formatBytes(int size) {
   final value = size / math.pow(1024, index);
   final precision = value >= 10 || index == 0 ? 0 : 1;
   return '${value.toStringAsFixed(precision)} ${units[index]}';
+}
+
+String _fileSizeLabel(int size) =>
+    size > 0 ? _formatBytes(size) : 'unknown size';
+
+String _basename(String path) {
+  final separatorIndex = path.lastIndexOf(Platform.pathSeparator);
+  if (separatorIndex < 0 || separatorIndex == path.length - 1) {
+    return path;
+  }
+  return path.substring(separatorIndex + 1);
 }
 
 String _formatMs(num? value) {

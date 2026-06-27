@@ -36,6 +36,7 @@ Thumbs.db
 # Flutter generated files
 **/GeneratedPluginRegistrant.*
 **/generated_plugin_registrant.*
+**/generated_plugins.cmake
 
 # Not supported in the initial native-only package scope
 example/web/

@@ -1,0 +1,110 @@
+name: Setup Zig
+description: Download Zig and add it to PATH
+
+inputs:
+  version:
+    description: Zig version to install
+    required: false
+    default: '0.16.0'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Zig on Unix
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        ZIG_VERSION="${{ inputs.version }}"
+
+        case "${{ runner.os }}" in
+          Linux)
+            ARCHIVE_CANDIDATES=(
+              "zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+              "zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
+            )
+            ;;
+          macOS)
+            ARCH="$(uname -m)"
+            if [[ "$ARCH" == "arm64" ]]; then
+              ARCHIVE_CANDIDATES=(
+                "zig-aarch64-macos-${ZIG_VERSION}.tar.xz"
+                "zig-macos-aarch64-${ZIG_VERSION}.tar.xz"
+              )
+            else
+              ARCHIVE_CANDIDATES=(
+                "zig-x86_64-macos-${ZIG_VERSION}.tar.xz"
+                "zig-macos-x86_64-${ZIG_VERSION}.tar.xz"
+              )
+            fi
+            ;;
+          *)
+            echo "Unsupported runner OS: ${{ runner.os }}" >&2
+            exit 1
+            ;;
+        esac
+
+        rm -f "$RUNNER_TEMP/zig.tar.xz"
+        ZIG_URL=""
+        for archive in "${ARCHIVE_CANDIDATES[@]}"; do
+          candidate_url="https://ziglang.org/download/${ZIG_VERSION}/${archive}"
+          echo "Trying Zig URL: $candidate_url"
+          if curl -fL --retry 3 "$candidate_url" -o "$RUNNER_TEMP/zig.tar.xz"; then
+            ZIG_URL="$candidate_url"
+            break
+          fi
+          rm -f "$RUNNER_TEMP/zig.tar.xz"
+        done
+
+        if [[ -z "$ZIG_URL" ]]; then
+          echo "Failed to download Zig ${ZIG_VERSION} for ${{ runner.os }}" >&2
+          exit 1
+        fi
+
+        mkdir -p "$RUNNER_TEMP/zig"
+        tar -xf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP/zig" --strip-components=1
+        echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+
+    - name: Install Zig on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $ZigVersion = '${{ inputs.version }}'
+        $Candidates = @(
+          "zig-x86_64-windows-$ZigVersion.zip",
+          "zig-windows-x86_64-$ZigVersion.zip"
+        )
+        $ArchivePath = Join-Path $env:RUNNER_TEMP 'zig.zip'
+        $ExtractPath = Join-Path $env:RUNNER_TEMP 'zig'
+        Remove-Item -Force -ErrorAction SilentlyContinue $ArchivePath
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $ExtractPath
+
+        $Downloaded = $false
+        foreach ($Archive in $Candidates) {
+          $Url = "https://ziglang.org/download/$ZigVersion/$Archive"
+          Write-Host "Trying Zig URL: $Url"
+          try {
+            Invoke-WebRequest -Uri $Url -OutFile $ArchivePath
+            $Downloaded = $true
+            break
+          } catch {
+            Remove-Item -Force -ErrorAction SilentlyContinue $ArchivePath
+          }
+        }
+
+        if (-not $Downloaded) {
+          throw "Failed to download Zig $ZigVersion for Windows"
+        }
+
+        Expand-Archive -Path $ArchivePath -DestinationPath $ExtractPath
+        $ZigDir = Get-ChildItem -Path $ExtractPath -Directory | Select-Object -First 1
+        if ($null -eq $ZigDir) {
+          throw "Could not locate extracted Zig directory"
+        }
+        Add-Content -Path $env:GITHUB_PATH -Value $ZigDir.FullName
+
+    - name: Verify Zig
+      shell: bash
+      run: zig version

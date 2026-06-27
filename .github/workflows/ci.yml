@@ -1,0 +1,220 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Accept Android licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+
+      - name: Build Android Zig prebuilts
+        run: scripts/build-zig-android.sh
+
+      - name: Build Android example
+        run: |
+          cd example
+          flutter pub get
+          flutter build apk --debug
+
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Build iOS example
+        run: |
+          cd example
+          flutter pub get
+          flutter build ios --debug --no-codesign
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Build macOS example
+        run: |
+          flutter config --enable-macos-desktop
+          cd example
+          flutter pub get
+          flutter build macos --debug
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Build Linux example
+        run: |
+          flutter config --enable-linux-desktop
+          cd example
+          flutter pub get
+          flutter build linux --debug
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Build Windows example
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          cd example
+          flutter pub get
+          flutter build windows --debug
+
+  verify-prebuilts:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Build Android prebuilts
+        run: scripts/build-zig-android.sh
+
+      - name: Build iOS prebuilts
+        run: scripts/build-zig-ios.sh
+
+      - name: Build macOS prebuilts
+        run: scripts/build-zig-macos.sh
+
+      - name: Build Linux prebuilts
+        run: scripts/build-zig-linux.sh
+
+      - name: Build Windows prebuilts
+        run: scripts/build-zig-windows.sh
+
+      - name: Check expected prebuilt files
+        run: scripts/check-prebuilts.sh

@@ -1,0 +1,101 @@
+#include "jni_utils.h"
+#include "zig_bridge.h"
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_apiVersion(JNIEnv *, jobject) {
+    return filehash::zig::ApiVersion();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_expectedApiVersion(JNIEnv *, jobject) {
+    return filehash::zig::ExpectedApiVersion();
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_streamHasherCreate(
+    JNIEnv *env,
+    jobject,
+    jint algorithm_id,
+    jbyteArray key_j,
+    jlong seed_j,
+    jboolean has_seed_j,
+    jstring operation_id_j
+) {
+    const std::vector<uint8_t> key = filehash::jni::JByteArrayToVector(env, key_j);
+    const std::string operation_id = filehash::jni::JStringToUtf8(env, operation_id_j);
+    jlong handle = 0;
+
+    if (!filehash::zig::StreamHasherCreate(
+            env,
+            algorithm_id,
+            key_j != nullptr,
+            key,
+            has_seed_j == JNI_TRUE,
+            static_cast<uint64_t>(seed_j),
+            operation_id,
+            &handle
+        )) {
+        return 0;
+    }
+
+    return handle;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_streamHasherUpdate(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jbyteArray data_j,
+    jint length
+) {
+    if (length < 0) {
+        filehash::jni::ThrowException(
+            env,
+            "java/lang/IllegalArgumentException",
+            "Invalid chunk length"
+        );
+        return;
+    }
+
+    const std::vector<uint8_t> data = filehash::jni::JByteArrayToVector(
+        env,
+        data_j,
+        static_cast<size_t>(length)
+    );
+
+    filehash::zig::StreamHasherUpdate(env, handle, data);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_streamHasherFinal(
+    JNIEnv *env,
+    jobject,
+    jlong handle
+) {
+    std::vector<uint8_t> digest;
+    if (!filehash::zig::StreamHasherFinal(env, handle, &digest)) {
+        return nullptr;
+    }
+
+    return filehash::jni::MakeJavaByteArray(env, digest.data(), digest.size());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_streamHasherFree(
+    JNIEnv *,
+    jobject,
+    jlong handle
+) {
+    filehash::zig::StreamHasherFree(handle);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_cancelOperation(
+    JNIEnv *env,
+    jobject,
+    jstring operation_id_j
+) {
+    const std::string operation_id = filehash::jni::JStringToUtf8(env, operation_id_j);
+    filehash::zig::CancelOperation(operation_id);
+}

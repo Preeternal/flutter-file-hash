@@ -17,6 +17,7 @@ void main() {
 
   test('derives deterministic XXH3 seeds from labels', () {
     expect(xxh3SeedFromLabel(''), 0xcbf29ce484222325);
+    expect(xxh3SeedFromLabel('media-cache-v1'), 0x091677a156a7756e);
     expect(
       xxh3SeedFromLabel('media-cache-v1'),
       xxh3SeedFromLabel('media-cache-v1'),
@@ -54,9 +55,34 @@ void main() {
       await file.writeAsString('abc');
 
       expect(await fileHash(file.path), stringHash('abc'));
+      expect(await fileHash(file.uri.toString()), stringHash('abc'));
     } finally {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  test('cancels before opening file input', () async {
+    final controller = HashCancellationController();
+    controller.cancel('stop');
+
+    expect(
+      fileHash('missing.txt', cancellationToken: controller.token),
+      throwsA(
+        isA<FlutterFileHashCancelledException>()
+            .having((error) => error.code, 'code', 'cancelled')
+            .having((error) => error.reason, 'reason', 'stop'),
+      ),
+    );
+  });
+
+  test('cancels before hashing string input', () {
+    final controller = HashCancellationController();
+    controller.cancel();
+
+    expect(
+      () => stringHash('abc', cancellationToken: controller.token),
+      throwsA(isA<FlutterFileHashCancelledException>()),
+    );
   });
 
   test('accepts empty key as provided HMAC key', () {

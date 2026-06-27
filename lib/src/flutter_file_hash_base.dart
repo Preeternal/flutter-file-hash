@@ -1,9 +1,12 @@
 import 'dart:convert' as convert;
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'android_file_hash.dart';
 import 'hash_algorithm.dart';
+import 'hash_cancellation.dart';
 import 'hash_exception.dart';
 import 'hash_options.dart';
 import 'option_codec.dart';
@@ -15,9 +18,33 @@ Future<String> fileHash(
   String path, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
   HashOptions? hashOptions,
-}) {
+  HashCancellationToken? cancellationToken,
+}) async {
   final normalizedOptions = normalizeHashOptions(algorithm, hashOptions);
-  return Isolate.run(() => _fileHashSync(path, algorithm, normalizedOptions));
+  cancellationToken?.throwIfCancelled();
+
+  if (AndroidFileHash.shouldUsePlatformOpener(path)) {
+    return AndroidFileHash.fileHash(
+      path,
+      algorithm: algorithm,
+      options: normalizedOptions,
+      cancellationToken: cancellationToken,
+    );
+  }
+
+  final dartPath = _normalizeDartFilePath(path);
+  if (cancellationToken != null) {
+    return _fileHashCancellable(
+      dartPath,
+      algorithm,
+      normalizedOptions,
+      cancellationToken,
+    );
+  }
+
+  return Isolate.run(
+    () => _fileHashSync(dartPath, algorithm, normalizedOptions),
+  );
 }
 
 String stringHash(
@@ -25,10 +52,14 @@ String stringHash(
   HashAlgorithm algorithm = HashAlgorithm.sha256,
   HashInputEncoding encoding = HashInputEncoding.utf8,
   HashOptions? hashOptions,
+  HashCancellationToken? cancellationToken,
 }) {
   final normalizedOptions = normalizeHashOptions(algorithm, hashOptions);
+  cancellationToken?.throwIfCancelled();
   final inputBytes = _decodeInput(input, encoding);
-  return _hashBytes(inputBytes, algorithm, normalizedOptions);
+  final result = _hashBytes(inputBytes, algorithm, normalizedOptions);
+  cancellationToken?.throwIfCancelled();
+  return result;
 }
 
 int xxh3SeedFromLabel(String label) {
@@ -77,6 +108,67 @@ String _fileHashSync(
   }
 }
 
+Future<String> _fileHashCancellable(
+  String path,
+  HashAlgorithm algorithm,
+  NormalizedHashOptions options,
+  HashCancellationToken cancellationToken,
+) async {
+  RandomAccessFile? file;
+  ZigStreamHasher? hasher;
+  HashCancellationDisposer? disposeCancel;
+
+  try {
+    cancellationToken.throwIfCancelled();
+    file = await File(path).open();
+    disposeCancel = cancellationToken.onCancel(() {
+      final activeFile = file;
+      if (activeFile != null) {
+        unawaited(activeFile.close().catchError((_) {}));
+      }
+    });
+
+    hasher = ZigStreamHasher(algorithm, options);
+    final buffer = Uint8List(_defaultChunkSize);
+
+    while (true) {
+      cancellationToken.throwIfCancelled();
+      final read = await file.readInto(buffer);
+      cancellationToken.throwIfCancelled();
+      if (read == 0) {
+        break;
+      }
+
+      hasher.update(Uint8List.sublistView(buffer, 0, read));
+    }
+
+    final result = hasher.finalHex();
+    cancellationToken.throwIfCancelled();
+    return result;
+  } on FileSystemException catch (error) {
+    cancellationToken.throwIfCancelled();
+    throw FlutterFileHashException(
+      code: 'io_error',
+      message: error.message,
+      cause: error,
+    );
+  } catch (_) {
+    cancellationToken.throwIfCancelled();
+    rethrow;
+  } finally {
+    disposeCancel?.call();
+    hasher?.dispose();
+    final activeFile = file;
+    if (activeFile != null) {
+      try {
+        await activeFile.close();
+      } on FileSystemException {
+        // The file can already be closed by cancellation.
+      }
+    }
+  }
+}
+
 String _hashBytes(
   Uint8List bytes,
   HashAlgorithm algorithm,
@@ -91,6 +183,19 @@ String _hashBytes(
   } finally {
     hasher.dispose();
   }
+}
+
+String _normalizeDartFilePath(String path) {
+  try {
+    final uri = Uri.parse(path);
+    if (uri.scheme.toLowerCase() == 'file') {
+      return uri.toFilePath(windows: Platform.isWindows);
+    }
+  } on FormatException {
+    return path;
+  }
+
+  return path;
 }
 
 Uint8List _decodeInput(String input, HashInputEncoding encoding) {

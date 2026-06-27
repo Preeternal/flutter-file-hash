@@ -1,4 +1,4 @@
-final class FlutterFileHashException implements Exception {
+class FlutterFileHashException implements Exception {
   const FlutterFileHashException({
     required this.code,
     required this.message,

@@ -2,6 +2,18 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DART_CMD=()
+
+if [[ -n "${DART_BIN:-}" ]]; then
+  DART_CMD=("${DART_BIN}")
+elif command -v dart >/dev/null 2>&1; then
+  DART_CMD=(dart)
+elif command -v fvm >/dev/null 2>&1; then
+  DART_CMD=(fvm dart)
+else
+  echo "dart is not installed or not in PATH" >&2
+  exit 1
+fi
 
 REQUIRED_PATHS=(
   "third_party/zig-files-hash-prebuilt/android/arm64-v8a/libzig_files_hash.a"
@@ -31,9 +43,14 @@ for path in "${REQUIRED_PATHS[@]}"; do
 done
 
 if (( ${#missing[@]} > 0 )); then
-  echo "Missing Zig prebuilt artifacts:" >&2
+  echo "Missing native artifacts required for pub.dev publishing:" >&2
   printf '  - %s\n' "${missing[@]}" >&2
   exit 1
 fi
 
-echo "All expected Zig prebuilt artifacts are present."
+(
+  cd "${ROOT_DIR}"
+  "${DART_CMD[@]}" pub publish --dry-run
+)
+
+echo "Verified pub.dev publish inputs."

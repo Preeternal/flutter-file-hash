@@ -70,8 +70,13 @@ fvm flutter test
 
 ## Running During Development
 
-Source checkouts build native assets from the Zig source through
-`hook/build.dart`. That means local source builds need Zig in `PATH`.
+Application builds load ready native artifacts through `hook/build.dart`.
+Published pub.dev packages must include those artifacts, so package users do not
+need Zig in `PATH`.
+
+Maintainers can generate the artifacts locally or in CI with the
+`scripts/build-zig-*.sh` commands. A source checkout only needs Zig when the
+prebuilt artifacts have not been generated yet.
 
 Android has one additional requirement: the URI bridge is a JNI library built by
 Gradle/CMake, and it links static Zig archives from
@@ -233,8 +238,9 @@ flutter build windows --release
 
 ## Native Prebuilt Matrix
 
-Generated artifacts live under `third_party/zig-files-hash-prebuilt/` and are
-ignored in git.
+Generated artifacts live under `third_party/zig-files-hash-prebuilt/`. They are
+ignored in git, but release CI generates them before `dart pub publish`.
+`.pubignore` intentionally keeps that directory publishable.
 
 These scripts are for maintainer verification and release staging:
 
@@ -251,9 +257,9 @@ Expected outputs:
 
 | Platform | Artifact |
 | --- | --- |
-| Android | `android/<abi>/libzig_files_hash.a` |
-| iOS | `ios/ZigFilesHash.xcframework` |
-| macOS | `macos/ZigFilesHash.xcframework` |
+| Android | `android/<abi>/libzig_files_hash.a` for JNI and `android/<abi>/libzig_files_hash_c_api.so` for Dart FFI |
+| iOS | `ios/ZigFilesHash.xcframework` plus `ios/ios-arm64/libzig_files_hash_c_api.dylib` and `ios/ios-simulator-universal/libzig_files_hash_c_api.dylib` |
+| macOS | `macos/ZigFilesHash.xcframework` plus `macos/universal/libzig_files_hash_c_api.dylib` |
 | Linux | `linux/<arch>/libzig_files_hash_c_api.so` |
 | Windows | `windows/<arch>/zig_files_hash_c_api.dll` |
 
@@ -263,16 +269,27 @@ The intended release model is that app developers add the Flutter package and
 build their app normally. They should not need to install Zig or run scripts
 from this repository.
 
-Until package publication is finalized, release-like verification from source
-uses the same native-assets build hook as development builds. Android source
-builds also require `scripts/build-zig-android.sh` because the JNI bridge links
-against static Zig archives.
+The release flow follows the same principle as `react-native-file-hash`: create
+and publish a GitHub Release for a version tag, then GitHub Actions publishes
+the package. Publishing is triggered by `release.published`, not by plain tag
+push.
+
+The first pub.dev release must be published manually by a package owner. After
+that, configure pub.dev automated publishing / trusted publisher for this
+repository and `.github/workflows/pub-publish.yml`.
+
+Release CI:
+
+- checks that `pubspec.yaml` version matches the GitHub Release tag;
+- runs format, analyze, and tests;
+- builds the full native prebuilt matrix;
+- checks required artifacts with `scripts/check-prebuilts.sh`;
+- validates pub.dev inputs with `scripts/check-pub-prebuilts.sh`;
+- publishes with `dart pub publish --force`.
 
 Before tagging a release:
 
-- run format, analyze, and tests;
 - run the platform smoke builds for the release targets;
-- build and check the native prebuilt matrix;
 - verify Android `content://` streaming at runtime;
 - verify the example app on at least one desktop or Apple platform.
 

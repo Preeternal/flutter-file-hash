@@ -1,0 +1,107 @@
+name: Publish Dart Package
+
+on:
+  workflow_dispatch: {}
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Zig
+        uses: ./.github/actions/setup-zig
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify release version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          TAG="${RELEASE_TAG:-${GITHUB_REF_NAME}}"
+          VERSION="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+          EXPECTED_TAG="v${VERSION}"
+
+          if [[ "${TAG}" != v* ]]; then
+            echo "::error::Publishing must run from a GitHub Release or a tag ref. Current ref: ${TAG}"
+            exit 1
+          fi
+
+          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
+            echo "::error::Release tag ${TAG} does not match pubspec.yaml version ${VERSION}. Expected ${EXPECTED_TAG}."
+            exit 1
+          fi
+
+          echo "Publishing version ${VERSION} from ${EVENT_NAME} ${TAG}."
+
+      - name: Ensure version not already on pub.dev
+        run: |
+          set -euo pipefail
+
+          NAME="$(awk '/^name:/ { print $2; exit }' pubspec.yaml)"
+          VERSION="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+          STATUS="$(curl -sS -o /dev/null -w '%{http_code}' "https://pub.dev/api/packages/${NAME}/versions/${VERSION}")"
+
+          if [[ "${STATUS}" == "200" ]]; then
+            echo "::error::${NAME}@${VERSION} already exists on pub.dev"
+            exit 1
+          fi
+
+          if [[ "${STATUS}" != "404" ]]; then
+            echo "::error::Unexpected pub.dev status while checking ${NAME}@${VERSION}: ${STATUS}"
+            exit 1
+          fi
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build Android Zig prebuilts
+        run: scripts/build-zig-android.sh
+
+      - name: Build iOS Zig prebuilts
+        run: scripts/build-zig-ios.sh
+
+      - name: Build macOS Zig prebuilts
+        run: scripts/build-zig-macos.sh
+
+      - name: Build Linux Zig prebuilts
+        run: scripts/build-zig-linux.sh
+
+      - name: Build Windows Zig prebuilts
+        run: scripts/build-zig-windows.sh
+
+      - name: Check native prebuilt matrix
+        run: scripts/check-prebuilts.sh
+
+      - name: Verify pub.dev package inputs
+        run: scripts/check-pub-prebuilts.sh
+
+      - name: Publish to pub.dev
+        run: dart pub publish --force

@@ -18,7 +18,8 @@ if(NOT EXISTS ${ZIG_PREBUILT_LIB})
   message(
     FATAL_ERROR
     "Zig prebuilt library is missing: ${ZIG_PREBUILT_LIB}. "
-    "Run scripts/build-zig-android.sh before building Android."
+    "Published packages should include this file. "
+    "For a source checkout, run scripts/build-zig-android.sh before building Android."
   )
 endif()
 

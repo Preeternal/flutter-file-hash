@@ -1,0 +1,47 @@
+# Local/editor state
+.DS_Store
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+.vscode/
+.idea/
+
+# Lock files are not published for reusable Flutter packages.
+/pubspec.lock
+example/pubspec.lock
+
+# Build and coverage output
+/build/
+/coverage/
+**/build/
+**/doc/api/
+
+# Flutter generated files
+**/GeneratedPluginRegistrant.*
+**/generated_plugin_registrant.*
+**/generated_plugins.cmake
+
+# Not supported in the initial native-only package scope
+example/web/
+
+# Local temporary notes
+docs/tmp-*
+docs/**/tmp-*
+
+# Native build working directories
+.cxx/
+cmake-build-*/
+DerivedData/
+Pods/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# Zig build caches
+.zig-cache/
+zig-out/
+
+# Keep third_party/zig-files-hash-prebuilt/. Release CI generates these files
+# before `dart pub publish`, and package users must receive them from pub.dev.

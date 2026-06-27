@@ -1,6 +1,7 @@
 name: flutter_file_hash
 description: "Flutter FFI file hashing powered by a Zig native core."
 version: 0.0.1
+repository: https://github.com/Preeternal/flutter-file-hash
 
 environment:
   sdk: ^3.12.2

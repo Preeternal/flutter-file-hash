@@ -74,20 +74,55 @@ build_target() {
   rm -rf "${prefix_dir}"
 }
 
+create_dylib() {
+  local arch="$1"
+  local min_version_flag="$2"
+  local input_lib="$3"
+  local output_lib="$4"
+  local sdk_path
+  sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
+
+  xcrun --sdk macosx clang \
+    -dynamiclib \
+    -arch "${arch}" \
+    -isysroot "${sdk_path}" \
+    "${min_version_flag}" \
+    -headerpad_max_install_names \
+    -Wl,-force_load,"${input_lib}" \
+    -install_name "@rpath/libzig_files_hash_c_api.dylib" \
+    -o "${output_lib}"
+}
+
 mkdir -p "${OUT_DIR}"
 rm -rf "${OUT_DIR}/ZigFilesHash.xcframework"
+rm -rf "${OUT_DIR}/universal"
 
 echo "Building zig-files-hash for macOS (arm64)..."
-build_target "aarch64-macos" "${TMP_DIR}/macos-arm64.a"
+build_target "aarch64-macos.11.0" "${TMP_DIR}/macos-arm64.a"
 
 echo "Building zig-files-hash for macOS (x86_64)..."
-build_target "x86_64-macos" "${TMP_DIR}/macos-x86_64.a"
+build_target "x86_64-macos.10.15" "${TMP_DIR}/macos-x86_64.a"
 
 echo "Creating universal macOS static library..."
 lipo -create \
   "${TMP_DIR}/macos-arm64.a" \
   "${TMP_DIR}/macos-x86_64.a" \
   -output "${TMP_DIR}/macos-universal.a"
+
+echo "Creating universal macOS dynamic library for Dart FFI native assets..."
+create_dylib "arm64" "-mmacosx-version-min=11.0" \
+  "${TMP_DIR}/macos-arm64.a" \
+  "${TMP_DIR}/macos-arm64.dylib"
+create_dylib "x86_64" "-mmacosx-version-min=10.15" \
+  "${TMP_DIR}/macos-x86_64.a" \
+  "${TMP_DIR}/macos-x86_64.dylib"
+lipo -create \
+  "${TMP_DIR}/macos-arm64.dylib" \
+  "${TMP_DIR}/macos-x86_64.dylib" \
+  -output "${TMP_DIR}/macos-universal.dylib"
+
+mkdir -p "${OUT_DIR}/universal"
+cp "${TMP_DIR}/macos-universal.dylib" "${OUT_DIR}/universal/libzig_files_hash_c_api.dylib"
 
 mkdir -p "${TMP_DIR}/macos"
 cp "${TMP_DIR}/macos-universal.a" "${TMP_DIR}/macos/libzig_files_hash.a"
@@ -100,3 +135,5 @@ xcodebuild -create-xcframework \
 
 echo "Done. macOS Zig prebuilt framework is in:"
 echo "  ${OUT_DIR}/ZigFilesHash.xcframework"
+echo "Done. macOS Zig dynamic prebuilt is in:"
+echo "  ${OUT_DIR}/universal"

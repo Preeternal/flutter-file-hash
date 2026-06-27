@@ -45,6 +45,9 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+      - name: Build Linux Zig prebuilts
+        run: scripts/build-zig-linux.sh
+
       - name: Test
         run: flutter test
 
@@ -102,6 +105,9 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
+      - name: Build iOS Zig prebuilts
+        run: scripts/build-zig-ios.sh
+
       - name: Build iOS example
         run: |
           cd example
@@ -125,6 +131,9 @@ jobs:
 
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
+
+      - name: Build macOS Zig prebuilts
+        run: scripts/build-zig-macos.sh
 
       - name: Build macOS example
         run: |
@@ -156,6 +165,9 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
+      - name: Build Linux Zig prebuilts
+        run: scripts/build-zig-linux.sh
+
       - name: Build Linux example
         run: |
           flutter config --enable-linux-desktop
@@ -180,6 +192,10 @@ jobs:
 
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
+
+      - name: Build Windows Zig prebuilts
+        shell: bash
+        run: scripts/build-zig-windows.sh
 
       - name: Build Windows example
         shell: pwsh

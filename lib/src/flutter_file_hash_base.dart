@@ -12,8 +12,6 @@ import 'hash_options.dart';
 import 'option_codec.dart';
 import 'zig_stream_hasher.dart';
 
-const int _defaultChunkSize = 64 * 1024;
-
 Future<String> fileHash(
   String path, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
@@ -33,17 +31,43 @@ Future<String> fileHash(
   }
 
   final dartPath = _normalizeDartFilePath(path);
-  if (cancellationToken != null) {
-    return _fileHashCancellable(
-      dartPath,
-      algorithm,
-      normalizedOptions,
-      cancellationToken,
+  return _fileHashNative(
+    dartPath,
+    algorithm,
+    normalizedOptions,
+    cancellationToken,
+  );
+}
+
+Future<String> uriHash(
+  Uri uri, {
+  HashAlgorithm algorithm = HashAlgorithm.sha256,
+  HashOptions? hashOptions,
+  HashCancellationToken? cancellationToken,
+}) async {
+  if (uri.scheme.toLowerCase() == 'file') {
+    return fileHash(
+      uri.toFilePath(windows: Platform.isWindows),
+      algorithm: algorithm,
+      hashOptions: hashOptions,
+      cancellationToken: cancellationToken,
     );
   }
 
-  return Isolate.run(
-    () => _fileHashSync(dartPath, algorithm, normalizedOptions),
+  if (Platform.isAndroid && uri.scheme.toLowerCase() == 'content') {
+    final normalizedOptions = normalizeHashOptions(algorithm, hashOptions);
+    cancellationToken?.throwIfCancelled();
+    return AndroidFileHash.fileHash(
+      uri.toString(),
+      algorithm: algorithm,
+      options: normalizedOptions,
+      cancellationToken: cancellationToken,
+    );
+  }
+
+  throw FlutterFileHashException(
+    code: 'unsupported_uri',
+    message: '`uriHash` supports file:// URIs and Android content:// URIs.',
   );
 }
 
@@ -73,99 +97,44 @@ int xxh3SeedFromLabel(String label) {
   return hash;
 }
 
-String _fileHashSync(
+Future<String> _fileHashNative(
   String path,
   HashAlgorithm algorithm,
   NormalizedHashOptions options,
-) {
-  RandomAccessFile? file;
-  ZigStreamHasher? hasher;
-
-  try {
-    file = File(path).openSync();
-    hasher = ZigStreamHasher(algorithm, options);
-
-    final buffer = Uint8List(_defaultChunkSize);
-    while (true) {
-      final read = file.readIntoSync(buffer);
-      if (read == 0) {
-        break;
-      }
-
-      hasher.update(Uint8List.sublistView(buffer, 0, read));
-    }
-
-    return hasher.finalHex();
-  } on FileSystemException catch (error) {
-    throw FlutterFileHashException(
-      code: 'io_error',
-      message: error.message,
-      cause: error,
-    );
-  } finally {
-    hasher?.dispose();
-    file?.closeSync();
-  }
-}
-
-Future<String> _fileHashCancellable(
-  String path,
-  HashAlgorithm algorithm,
-  NormalizedHashOptions options,
-  HashCancellationToken cancellationToken,
+  HashCancellationToken? cancellationToken,
 ) async {
-  RandomAccessFile? file;
-  ZigStreamHasher? hasher;
+  cancellationToken?.throwIfCancelled();
+  final operation = cancellationToken == null ? null : ZigHashOperation();
+  final operationAddress = operation?.address ?? 0;
+  final operationLength = operation?.length ?? 0;
   HashCancellationDisposer? disposeCancel;
 
   try {
-    cancellationToken.throwIfCancelled();
-    file = await File(path).open();
-    disposeCancel = cancellationToken.onCancel(() {
-      final activeFile = file;
-      if (activeFile != null) {
-        unawaited(activeFile.close().catchError((_) {}));
+    disposeCancel = cancellationToken?.onCancel(() {
+      try {
+        operation?.cancel();
+      } catch (_) {
+        // The active native call will surface cancellation or its own error.
       }
     });
 
-    hasher = ZigStreamHasher(algorithm, options);
-    final buffer = Uint8List(_defaultChunkSize);
-
-    while (true) {
-      cancellationToken.throwIfCancelled();
-      final read = await file.readInto(buffer);
-      cancellationToken.throwIfCancelled();
-      if (read == 0) {
-        break;
-      }
-
-      hasher.update(Uint8List.sublistView(buffer, 0, read));
-    }
-
-    final result = hasher.finalHex();
-    cancellationToken.throwIfCancelled();
-    return result;
-  } on FileSystemException catch (error) {
-    cancellationToken.throwIfCancelled();
-    throw FlutterFileHashException(
-      code: 'io_error',
-      message: error.message,
-      cause: error,
+    final result = await Isolate.run(
+      () => zigFileHashPath(
+        path,
+        algorithm,
+        options,
+        operationPtrAddress: operationAddress,
+        operationLen: operationLength,
+      ),
     );
+    cancellationToken?.throwIfCancelled();
+    return result;
   } catch (_) {
-    cancellationToken.throwIfCancelled();
+    cancellationToken?.throwIfCancelled();
     rethrow;
   } finally {
     disposeCancel?.call();
-    hasher?.dispose();
-    final activeFile = file;
-    if (activeFile != null) {
-      try {
-        await activeFile.close();
-      } on FileSystemException {
-        // The file can already be closed by cancellation.
-      }
-    }
+    operation?.dispose();
   }
 }
 

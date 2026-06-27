@@ -18,12 +18,7 @@ final class AndroidFileHash {
       return false;
     }
 
-    final scheme = _uriScheme(path);
-    if (scheme == null || scheme.isEmpty) {
-      return false;
-    }
-
-    return true;
+    return _uriScheme(path) == 'content';
   }
 
   static Future<String> fileHash(

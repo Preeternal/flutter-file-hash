@@ -30,22 +30,32 @@ fvm flutter pub get
 
 ## Contributor Notes
 
-The package uses the streaming C ABI from `zig-files-hash`.
+The package uses `zig-files-hash` C ABI as the native hashing boundary.
 
 ```text
 Dart API
-  -> Dart FFI for filesystem paths and strings
-  -> Android MethodChannel only for URI openers
+  -> fileHash(path) for normal filesystem paths
+    -> Dart FFI
+    -> zfh_context_file_hash
+      -> Zig opens, reads, hashes, and closes the file
+  -> stringHash(input)
+    -> Dart FFI
+    -> zfh_hasher_init_inplace / update / final
+  -> uriHash(content://...) on Android
+    -> Android MethodChannel
     -> Kotlin InputStream
     -> JNI bridge
-  -> zig-files-hash C ABI
     -> zfh_hasher_init_inplace
     -> zfh_hasher_update
     -> zfh_hasher_final
 ```
 
-One-shot C ABI helpers are intentionally not used. File hashing and string
-hashing should go through the streaming hasher path.
+Do not read filesystem files in Dart chunks and call Zig once per chunk.
+Filesystem file hashing should be one native call through
+`zfh_context_file_hash`; Zig streams internally.
+
+Raw byte one-shot helpers are intentionally not used for file hashing.
+`stringHash` uses the streaming hasher path so option handling stays shared.
 
 Android is the only platform with a platform opener today. It is needed for
 `content://` inputs because `dart:io File` cannot open them. The Android path

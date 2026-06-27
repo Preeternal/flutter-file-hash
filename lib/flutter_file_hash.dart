@@ -1,5 +1,5 @@
 export 'src/flutter_file_hash_base.dart'
-    show fileHash, stringHash, xxh3SeedFromLabel;
+    show fileHash, stringHash, uriHash, xxh3SeedFromLabel;
 export 'src/hash_algorithm.dart' show HashAlgorithm;
 export 'src/hash_cancellation.dart'
     show

@@ -48,7 +48,7 @@ void main() {
     );
   });
 
-  test('hashes file input through the Zig stream hasher', () async {
+  test('hashes file input through the Zig file hasher', () async {
     final tempDir = await Directory.systemTemp.createTemp('flutter_file_hash_');
     try {
       final file = File.fromUri(tempDir.uri.resolve('input.txt'));
@@ -56,9 +56,23 @@ void main() {
 
       expect(await fileHash(file.path), stringHash('abc'));
       expect(await fileHash(file.uri.toString()), stringHash('abc'));
+      expect(await uriHash(file.uri), stringHash('abc'));
     } finally {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  test('rejects unsupported non-file URI outside Android content resolver', () {
+    expect(
+      uriHash(Uri.parse('https://example.com/file.bin')),
+      throwsA(
+        isA<FlutterFileHashException>().having(
+          (error) => error.code,
+          'code',
+          'unsupported_uri',
+        ),
+      ),
+    );
   });
 
   test('cancels before opening file input', () async {

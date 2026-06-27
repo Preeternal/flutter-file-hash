@@ -7,8 +7,8 @@ Use it when an app needs to verify downloads, fingerprint media, deduplicate
 local files, build fast cache keys, compare local content, or authenticate data
 with HMAC or keyed BLAKE3.
 
-`flutter_file_hash` streams file data in chunks instead of loading full files
-into Dart memory. The hashing core is
+`flutter_file_hash` hashes files inside the native core instead of loading full
+files into Dart memory. The hashing core is
 [`zig-files-hash`](https://github.com/Preeternal/zig-files-hash), exposed through
 its C ABI and called from Flutter via native assets.
 
@@ -26,7 +26,7 @@ Web is not part of the first native package scope.
 - Defaults to `SHA-256`.
 - Returns lowercase hex strings.
 - Supports local filesystem paths.
-- Supports Android `content://` and `file://` URIs through a platform opener.
+- Supports `file://` URIs and Android `content://` URIs.
 - Supports HMAC, keyed BLAKE3, and seeded XXH3-64.
 - Supports cooperative cancellation for file hashing.
 
@@ -34,7 +34,7 @@ Web is not part of the first native package scope.
 
 | Platform | Support | Notes |
 | --- | --- | --- |
-| Android | Native | Filesystem paths plus `content://` / `file://` URI opener |
+| Android | Native | Filesystem paths through Dart FFI; `content://` through Android opener |
 | iOS | Native | Filesystem paths through Dart FFI |
 | macOS | Native | Filesystem paths through Dart FFI |
 | Linux | Native | Filesystem paths through Dart FFI |
@@ -62,6 +62,8 @@ import 'package:flutter_file_hash/flutter_file_hash.dart';
 
 final digest = await fileHash('/path/to/video.mp4');
 // SHA-256 lowercase hex by default
+
+final uriDigest = await uriHash(Uri.file('/path/to/video.mp4'));
 
 final textDigest = stringHash('hello world');
 ```
@@ -147,7 +149,7 @@ FNV-1a 64-bit. Use HMAC or keyed BLAKE3 when authenticity matters.
 
 ### `fileHash(path, ...)`
 
-Hashes a file or supported platform URI and returns a lowercase hex digest.
+Hashes a local file path and returns a lowercase hex digest.
 
 ```dart
 Future<String> fileHash(
@@ -161,8 +163,28 @@ Future<String> fileHash(
 `path` can be:
 
 - a local filesystem path;
-- a `file://` URI;
-- an Android `content://` URI.
+- a `file://` URI string;
+- an Android `content://` URI string for compatibility.
+
+Prefer `uriHash(Uri)` when the input is already a URI.
+
+### `uriHash(uri, ...)`
+
+Hashes a supported URI and returns a lowercase hex digest.
+
+```dart
+Future<String> uriHash(
+  Uri uri, {
+  HashAlgorithm algorithm = HashAlgorithm.sha256,
+  HashOptions? hashOptions,
+  HashCancellationToken? cancellationToken,
+});
+```
+
+Supported URI schemes:
+
+- `file://` on all native platforms;
+- `content://` on Android.
 
 ### `stringHash(input, ...)`
 
@@ -247,8 +269,8 @@ Key rules:
 
 ## Android URI Streams
 
-Plain filesystem paths are read from Dart in 64 KiB chunks and streamed into the
-Zig C ABI hasher.
+Plain filesystem paths use one Dart FFI call into `zfh_context_file_hash`; Zig
+opens and streams the file internally.
 
 Android URI inputs cannot be opened with `dart:io File`, so they go through the
 Android plugin layer:

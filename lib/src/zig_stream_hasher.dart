@@ -1,3 +1,4 @@
+import 'dart:convert' as convert;
 import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
@@ -8,6 +9,109 @@ import 'hash_exception.dart';
 import 'hex.dart';
 import 'option_codec.dart';
 import 'zig_files_hash_bindings.dart' as zfh;
+
+String zigFileHashPath(
+  String path,
+  HashAlgorithm algorithm,
+  NormalizedHashOptions options, {
+  int operationPtrAddress = 0,
+  int operationLen = 0,
+}) {
+  _ensureCompatibleApi();
+
+  final pathBytes = Uint8List.fromList(convert.utf8.encode(path));
+  final pathPtr = pkg_ffi.calloc<ffi.Uint8>(pathBytes.length);
+  final outLen = zfh.zfhMaxDigestLength();
+  final outPtr = pkg_ffi.calloc<ffi.Uint8>(outLen);
+  final writtenLenPtr = pkg_ffi.calloc<ffi.Size>();
+  final ctxPtrPtr = pkg_ffi.calloc<ffi.Pointer<zfh.ZfhContext>>();
+  ffi.Pointer<zfh.ZfhContext>? ctxPtr;
+  final request = _buildRequest(
+    options,
+    operationPtrAddress: operationPtrAddress,
+    operationLen: operationLen,
+  );
+
+  try {
+    pathPtr.asTypedList(pathBytes.length).setAll(0, pathBytes);
+    _check(zfh.zfhContextCreate(ctxPtrPtr));
+    ctxPtr = ctxPtrPtr.value;
+
+    _check(
+      zfh.zfhContextFileHash(
+        ctxPtr,
+        algorithm.zigId,
+        pathPtr,
+        pathBytes.length,
+        request.requestPtr,
+        outPtr,
+        outLen,
+        writtenLenPtr,
+      ),
+    );
+
+    return hexEncode(
+      Uint8List.fromList(outPtr.asTypedList(writtenLenPtr.value)),
+    );
+  } finally {
+    request.dispose();
+    if (ctxPtr != null && ctxPtr != ffi.nullptr) {
+      zfh.zfhContextDestroy(ctxPtr);
+    }
+    pkg_ffi.calloc.free(ctxPtrPtr);
+    pkg_ffi.calloc.free(writtenLenPtr);
+    pkg_ffi.calloc.free(outPtr);
+    pkg_ffi.calloc.free(pathPtr);
+  }
+}
+
+final class ZigHashOperation {
+  ZigHashOperation() {
+    _ensureCompatibleApi();
+
+    final stateSize = zfh.zfhOperationStateSize();
+    final stateAlign = zfh.zfhOperationStateAlign();
+    final stateStorage = _allocateAligned(stateSize, stateAlign);
+    _stateBasePtr = stateStorage.basePtr;
+    _statePtr = stateStorage.alignedPtr;
+    _stateLen = stateStorage.len;
+
+    try {
+      _check(zfh.zfhOperationInitInplace(_statePtr, _stateLen));
+      _initialized = true;
+    } catch (_) {
+      pkg_ffi.calloc.free(_stateBasePtr);
+      rethrow;
+    }
+  }
+
+  late final ffi.Pointer<ffi.Uint8> _stateBasePtr;
+  late final ffi.Pointer<ffi.Void> _statePtr;
+  late final int _stateLen;
+  bool _initialized = false;
+  bool _disposed = false;
+
+  int get address => _statePtr.address;
+
+  int get length => _stateLen;
+
+  void cancel() {
+    if (!_initialized || _disposed) {
+      return;
+    }
+    _check(zfh.zfhOperationCancel(_statePtr, _stateLen));
+  }
+
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    if (_initialized) {
+      pkg_ffi.calloc.free(_stateBasePtr);
+    }
+    _disposed = true;
+  }
+}
 
 final class ZigStreamHasher {
   ZigStreamHasher(this.algorithm, this.options) {
@@ -146,21 +250,30 @@ String _errorCode(int code) {
   };
 }
 
-_RequestAllocation _buildRequest(NormalizedHashOptions options) {
-  if (!options.hasKey && !options.hasSeed) {
+_RequestAllocation _buildRequest(
+  NormalizedHashOptions options, {
+  int operationPtrAddress = 0,
+  int operationLen = 0,
+}) {
+  final hasOperation = operationPtrAddress != 0 && operationLen > 0;
+  if (!options.hasKey && !options.hasSeed && !hasOperation) {
     return _RequestAllocation.empty();
   }
 
   final requestPtr = pkg_ffi.calloc<zfh.ZfhRequest>();
-  final optionsPtr = pkg_ffi.calloc<zfh.ZfhOptions>();
+  final optionsPtr = options.hasKey || options.hasSeed
+      ? pkg_ffi.calloc<zfh.ZfhOptions>()
+      : ffi.nullptr;
   ffi.Pointer<ffi.Uint8>? keyPtr;
 
-  optionsPtr.ref
-    ..structSize = ffi.sizeOf<zfh.ZfhOptions>()
-    ..flags = 0
-    ..seed = 0
-    ..keyPtr = ffi.nullptr
-    ..keyLen = 0;
+  if (optionsPtr != ffi.nullptr) {
+    optionsPtr.ref
+      ..structSize = ffi.sizeOf<zfh.ZfhOptions>()
+      ..flags = 0
+      ..seed = 0
+      ..keyPtr = ffi.nullptr
+      ..keyLen = 0;
+  }
 
   if (options.hasKey) {
     if (options.key.isEmpty) {
@@ -183,8 +296,10 @@ _RequestAllocation _buildRequest(NormalizedHashOptions options) {
   requestPtr.ref
     ..structSize = ffi.sizeOf<zfh.ZfhRequest>()
     ..optionsPtr = optionsPtr
-    ..operationPtr = ffi.nullptr
-    ..operationLen = 0;
+    ..operationPtr = hasOperation
+        ? ffi.Pointer<ffi.Void>.fromAddress(operationPtrAddress)
+        : ffi.nullptr
+    ..operationLen = hasOperation ? operationLen : 0;
 
   return _RequestAllocation(
     requestPtr: requestPtr,

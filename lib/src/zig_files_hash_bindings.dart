@@ -35,6 +35,8 @@ final class ZfhRequest extends ffi.Struct {
   external int operationLen;
 }
 
+final class ZfhContext extends ffi.Opaque {}
+
 @ffi.Native<ffi.Uint32 Function()>(
   assetId: zfhAssetId,
   symbol: 'zfh_api_version',
@@ -52,6 +54,71 @@ external int zfhMaxDigestLength();
   symbol: 'zfh_error_message',
 )
 external ffi.Pointer<ffi.Char> zfhErrorMessage(int code);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Pointer<ZfhContext>>)>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_context_create',
+)
+external int zfhContextCreate(ffi.Pointer<ffi.Pointer<ZfhContext>> outCtxPtr);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ZfhContext>)>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_context_destroy',
+)
+external int zfhContextDestroy(ffi.Pointer<ZfhContext> ctxPtr);
+
+@ffi.Native<ffi.Size Function()>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_operation_state_size',
+)
+external int zfhOperationStateSize();
+
+@ffi.Native<ffi.Size Function()>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_operation_state_align',
+)
+external int zfhOperationStateAlign();
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Size)>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_operation_init_inplace',
+)
+external int zfhOperationInitInplace(
+  ffi.Pointer<ffi.Void> operationPtr,
+  int operationLen,
+);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Size)>(
+  assetId: zfhAssetId,
+  symbol: 'zfh_operation_cancel',
+)
+external int zfhOperationCancel(
+  ffi.Pointer<ffi.Void> operationPtr,
+  int operationLen,
+);
+
+@ffi.Native<
+  ffi.Int32 Function(
+    ffi.Pointer<ZfhContext>,
+    ffi.Int32,
+    ffi.Pointer<ffi.Uint8>,
+    ffi.Size,
+    ffi.Pointer<ZfhRequest>,
+    ffi.Pointer<ffi.Uint8>,
+    ffi.Size,
+    ffi.Pointer<ffi.Size>,
+  )
+>(assetId: zfhAssetId, symbol: 'zfh_context_file_hash')
+external int zfhContextFileHash(
+  ffi.Pointer<ZfhContext> ctxPtr,
+  int algorithm,
+  ffi.Pointer<ffi.Uint8> pathPtr,
+  int pathLen,
+  ffi.Pointer<ZfhRequest> requestPtr,
+  ffi.Pointer<ffi.Uint8> outPtr,
+  int outLen,
+  ffi.Pointer<ffi.Size> writtenLenPtr,
+);
 
 @ffi.Native<ffi.Size Function()>(
   assetId: zfhAssetId,

@@ -15,8 +15,7 @@ its C ABI and called from Flutter via native assets.
 ## Status
 
 This package is in active development and is not published yet. The Dart API and
-native build path are usable for local testing; release packaging for ready
-native artifacts is still being finalized.
+native build path are usable for local testing.
 
 Web is not part of the first native package scope.
 
@@ -30,25 +29,22 @@ Web is not part of the first native package scope.
 - Supports Android `content://` and `file://` URIs through a platform opener.
 - Supports HMAC, keyed BLAKE3, and seeded XXH3-64.
 - Supports cooperative cancellation for file hashing.
-- Includes CI jobs for Android, iOS, macOS, Linux, and Windows.
 
-## Platform Status
+## Platform Support
 
-| Platform | Status | Notes |
+| Platform | Support | Notes |
 | --- | --- | --- |
-| Android | In progress | Filesystem paths plus `content://` / `file://` URI opener |
-| iOS | In progress | Filesystem paths through Dart FFI |
-| macOS | In progress | Filesystem paths through Dart FFI |
-| Linux | In progress | CI build job configured |
-| Windows | In progress | CI build job configured |
+| Android | Native | Filesystem paths plus `content://` / `file://` URI opener |
+| iOS | Native | Filesystem paths through Dart FFI |
+| macOS | Native | Filesystem paths through Dart FFI |
+| Linux | Native | Filesystem paths through Dart FFI |
+| Windows | Native | Filesystem paths through Dart FFI |
 | Web | Not planned yet | Would need a separate WASM/browser path |
-
-Android `content://` runtime testing with a real document picker is still the
-main open platform check.
 
 ## Installation
 
-The package is not on pub.dev yet. Use a path dependency while developing:
+The package is not on pub.dev yet. Use a path dependency while testing a local
+checkout:
 
 ```yaml
 dependencies:
@@ -56,17 +52,8 @@ dependencies:
     path: ../flutter-file-hash
 ```
 
-Initialize the Zig core after cloning:
-
-```bash
-git submodule update --init --recursive
-```
-
-For Android builds, generate the local static Zig archives first:
-
-```bash
-scripts/build-zig-android.sh
-```
+Local development and release verification steps are documented in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick Start
 
@@ -274,63 +261,6 @@ ContentResolver.openInputStream(uri)
 ```
 
 This avoids copying `content://` data into a temporary file before hashing.
-
-## Native Architecture
-
-```text
-Dart API
-  -> Dart FFI for filesystem paths and strings
-  -> Android MethodChannel only for URI openers
-    -> Kotlin InputStream
-    -> JNI bridge
-  -> zig-files-hash C ABI
-    -> zfh_hasher_init_inplace
-    -> zfh_hasher_update
-    -> zfh_hasher_final
-```
-
-One-shot C ABI helpers are intentionally not used. Flutter uses the streaming
-hasher path for both files and strings.
-
-## Native Assets And Prebuilts
-
-The package currently uses Flutter native assets through:
-
-```text
-hook/build.dart
-```
-
-The build hook compiles `third_party/zig-files-hash/src/c_api.zig` into the
-bundled native asset used by Dart FFI.
-
-Current behavior:
-
-- non-Darwin targets use a direct Zig dynamic library;
-- iOS and macOS build a Zig static archive first;
-- Darwin static archives are wrapped into dylibs with Xcode `clang`;
-- Android URI support links Zig static `.a` archives into the JNI library.
-
-Local prebuilt artifacts are generated under
-`third_party/zig-files-hash-prebuilt/` and ignored in git.
-
-Maintainer commands:
-
-```bash
-scripts/build-zig-android.sh
-scripts/build-zig-ios.sh
-scripts/build-zig-macos.sh
-scripts/build-zig-linux.sh
-scripts/build-zig-windows.sh
-scripts/check-prebuilts.sh
-```
-
-For release, the preferred path is to ship ready native artifacts so normal
-Flutter users do not need Zig installed.
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, platform smoke builds,
-and release QA notes.
 
 ## License
 

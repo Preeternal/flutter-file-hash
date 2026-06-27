@@ -2,46 +2,195 @@
 
 ## Setup
 
-Initialize submodules:
+Use Flutter stable, Zig, and the platform SDKs for the targets you want to
+build. The CI Zig version is defined in
+`.github/actions/setup-zig/action.yml`.
+
+If you do not use FVM locally, replace `fvm flutter` and `fvm dart` with
+`flutter` and `dart`.
+
+Initialize the Zig submodule:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-Install dependencies:
+Install package dependencies:
 
 ```bash
 fvm flutter pub get
 ```
 
-## Fast Checks
+Install example app dependencies:
 
 ```bash
+cd example
+fvm flutter pub get
+```
+
+## Contributor Notes
+
+The package uses the streaming C ABI from `zig-files-hash`.
+
+```text
+Dart API
+  -> Dart FFI for filesystem paths and strings
+  -> Android MethodChannel only for URI openers
+    -> Kotlin InputStream
+    -> JNI bridge
+  -> zig-files-hash C ABI
+    -> zfh_hasher_init_inplace
+    -> zfh_hasher_update
+    -> zfh_hasher_final
+```
+
+One-shot C ABI helpers are intentionally not used. File hashing and string
+hashing should go through the streaming hasher path.
+
+Android is the only platform with a platform opener today. It is needed for
+`content://` inputs because `dart:io File` cannot open them. The Android path
+streams from `ContentResolver.openInputStream` into the same Zig hasher and must
+not copy URI data into a temporary file as part of normal hashing.
+
+Provider-backed iOS/macOS URLs are not handled by a platform opener yet. Current
+Apple platform support is for normal filesystem paths through Dart FFI.
+
+Temporary planning notes should live under `docs/tmp-*` or `docs/**/tmp-*`.
+Those paths are ignored by git.
+
+## Fast Checks
+
+Run these before opening a PR:
+
+```bash
+fvm dart format --set-exit-if-changed .
 fvm flutter analyze
 fvm flutter test
 ```
 
-## Platform Smoke Builds
+## Development Builds
 
-From macOS:
+Source checkouts build native assets from the Zig source through
+`hook/build.dart`. That means local source builds need Zig in `PATH`.
+
+Android has one additional requirement: the URI bridge is a JNI library built by
+Gradle/CMake, and it links static Zig archives from
+`third_party/zig-files-hash-prebuilt/android`. Generate those archives before
+building the Android example.
+
+### Android
+
+Debug smoke build:
 
 ```bash
 scripts/build-zig-android.sh
-cd example && fvm flutter build apk --debug
+cd example
+fvm flutter build apk --debug
 ```
+
+Release packaging smoke:
 
 ```bash
-cd example && fvm flutter build ios --debug --no-codesign
+scripts/build-zig-android.sh
+cd example
+fvm flutter build apk --release
+fvm flutter build appbundle --release
 ```
+
+Runtime check for Android should include a real `content://` URI once the
+example app exposes picker UI.
+
+### iOS
+
+Debug smoke build:
 
 ```bash
-cd example && fvm flutter build macos --debug
+cd example
+fvm flutter build ios --debug --no-codesign
 ```
 
-Linux and Windows Flutter app builds should run on their own host OS. The CI
-workflow has dedicated jobs for them.
+Release packaging smoke:
 
-## Prebuilt Matrix
+```bash
+cd example
+fvm flutter build ios --release --no-codesign
+```
+
+Code signing belongs to the consuming application. The library smoke build uses
+`--no-codesign` so CI and local checks can validate packaging without a private
+Apple team setting.
+
+### macOS
+
+Debug smoke build:
+
+```bash
+fvm flutter config --enable-macos-desktop
+cd example
+fvm flutter build macos --debug
+```
+
+Release packaging smoke:
+
+```bash
+fvm flutter config --enable-macos-desktop
+cd example
+fvm flutter build macos --release
+```
+
+### Linux
+
+Install Flutter desktop build prerequisites for the host distribution first.
+The CI Ubuntu job installs:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+```
+
+Debug smoke build:
+
+```bash
+fvm flutter config --enable-linux-desktop
+cd example
+fvm flutter build linux --debug
+```
+
+Release packaging smoke:
+
+```bash
+fvm flutter config --enable-linux-desktop
+cd example
+fvm flutter build linux --release
+```
+
+### Windows
+
+Run Windows builds on a Windows host with the Flutter Windows desktop toolchain
+installed.
+
+Debug smoke build:
+
+```powershell
+flutter config --enable-windows-desktop
+cd example
+flutter build windows --debug
+```
+
+Release packaging smoke:
+
+```powershell
+flutter config --enable-windows-desktop
+cd example
+flutter build windows --release
+```
+
+## Native Prebuilt Matrix
+
+Generated artifacts live under `third_party/zig-files-hash-prebuilt/` and are
+ignored in git.
+
+These scripts are for maintainer verification and release staging:
 
 ```bash
 scripts/build-zig-android.sh
@@ -52,8 +201,48 @@ scripts/build-zig-windows.sh
 scripts/check-prebuilts.sh
 ```
 
-The generated artifacts live under `third_party/zig-files-hash-prebuilt/` and
-are ignored in git.
+Expected outputs:
+
+| Platform | Artifact |
+| --- | --- |
+| Android | `android/<abi>/libzig_files_hash.a` |
+| iOS | `ios/ZigFilesHash.xcframework` |
+| macOS | `macos/ZigFilesHash.xcframework` |
+| Linux | `linux/<arch>/libzig_files_hash_c_api.so` |
+| Windows | `windows/<arch>/zig_files_hash_c_api.dll` |
+
+## Release Model
+
+The intended release model is that app developers add the Flutter package and
+build their app normally. They should not need to install Zig or run scripts
+from this repository.
+
+Until package publication is finalized, release-like verification from source
+uses the same native-assets build hook as development builds. Android source
+builds also require `scripts/build-zig-android.sh` because the JNI bridge links
+against static Zig archives.
+
+Before tagging a release:
+
+- run format, analyze, and tests;
+- run the platform smoke builds for the release targets;
+- build and check the native prebuilt matrix;
+- verify Android `content://` streaming at runtime;
+- verify the example app on at least one desktop or Apple platform.
+
+## CI
+
+The GitHub Actions workflow mirrors the expected platform checks:
+
+- package format, analyze, and tests on Ubuntu;
+- Android debug example build on Ubuntu;
+- iOS debug example build on macOS without codesigning;
+- macOS debug example build on macOS;
+- Linux debug example build on Ubuntu;
+- Windows debug example build on Windows;
+- native prebuilt matrix verification on macOS.
+
+Keep local commands and CI in sync when changing native packaging.
 
 ## Manual QA Checklist
 

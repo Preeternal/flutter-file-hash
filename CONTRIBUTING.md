@@ -68,7 +68,7 @@ fvm flutter analyze
 fvm flutter test
 ```
 
-## Development Builds
+## Running During Development
 
 Source checkouts build native assets from the Zig source through
 `hook/build.dart`. That means local source builds need Zig in `PATH`.
@@ -78,21 +78,50 @@ Gradle/CMake, and it links static Zig archives from
 `third_party/zig-files-hash-prebuilt/android`. Generate those archives before
 building the Android example.
 
+Use Flutter's device list as the source of truth for target ids:
+
+```bash
+cd example
+fvm flutter devices
+```
+
+Use `flutter run` for interactive testing on simulators, emulators, phones, and
+desktop targets. Use `flutter build` for packaging smoke checks.
+
 ### Android
 
-Debug smoke build:
+Android emulator or USB device:
+
+```bash
+scripts/build-zig-android.sh
+cd example
+fvm flutter devices
+fvm flutter run -d <android-device-id>
+```
+
+To launch an installed emulator first:
+
+```bash
+cd example
+fvm flutter emulators
+fvm flutter emulators --launch <emulator-id>
+fvm flutter run -d <android-device-id>
+```
+
+Android release run on a connected emulator or device:
+
+```bash
+scripts/build-zig-android.sh
+cd example
+fvm flutter run --release -d <android-device-id>
+```
+
+Android packaging smoke:
 
 ```bash
 scripts/build-zig-android.sh
 cd example
 fvm flutter build apk --debug
-```
-
-Release packaging smoke:
-
-```bash
-scripts/build-zig-android.sh
-cd example
 fvm flutter build apk --release
 fvm flutter build appbundle --release
 ```
@@ -102,39 +131,54 @@ example app exposes picker UI.
 
 ### iOS
 
-Debug smoke build:
+iOS simulator:
+
+```bash
+cd example
+open -a Simulator
+fvm flutter devices
+fvm flutter run -d <ios-simulator-id>
+```
+
+iOS physical device:
+
+```bash
+cd example
+fvm flutter devices
+fvm flutter run -d <ios-device-id>
+```
+
+Physical iOS devices require normal Apple development signing. Configure signing
+locally in Xcode if needed, but do not commit personal `DEVELOPMENT_TEAM`,
+provisioning profile, or signing identity changes from the example project.
+
+iOS packaging smoke without signing:
 
 ```bash
 cd example
 fvm flutter build ios --debug --no-codesign
-```
-
-Release packaging smoke:
-
-```bash
-cd example
 fvm flutter build ios --release --no-codesign
 ```
 
-Code signing belongs to the consuming application. The library smoke build uses
-`--no-codesign` so CI and local checks can validate packaging without a private
-Apple team setting.
+iOS simulator is for debug/profile style runtime checks. Release installation is
+a signed device or archive concern, not a simulator check.
 
 ### macOS
 
-Debug smoke build:
+macOS run:
+
+```bash
+fvm flutter config --enable-macos-desktop
+cd example
+fvm flutter run -d macos
+```
+
+macOS packaging smoke:
 
 ```bash
 fvm flutter config --enable-macos-desktop
 cd example
 fvm flutter build macos --debug
-```
-
-Release packaging smoke:
-
-```bash
-fvm flutter config --enable-macos-desktop
-cd example
 fvm flutter build macos --release
 ```
 
@@ -148,19 +192,20 @@ sudo apt-get update
 sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
 ```
 
-Debug smoke build:
+Linux run:
+
+```bash
+fvm flutter config --enable-linux-desktop
+cd example
+fvm flutter run -d linux
+```
+
+Linux packaging smoke:
 
 ```bash
 fvm flutter config --enable-linux-desktop
 cd example
 fvm flutter build linux --debug
-```
-
-Release packaging smoke:
-
-```bash
-fvm flutter config --enable-linux-desktop
-cd example
 fvm flutter build linux --release
 ```
 
@@ -169,19 +214,20 @@ fvm flutter build linux --release
 Run Windows builds on a Windows host with the Flutter Windows desktop toolchain
 installed.
 
-Debug smoke build:
+Windows run:
+
+```powershell
+flutter config --enable-windows-desktop
+cd example
+flutter run -d windows
+```
+
+Windows packaging smoke:
 
 ```powershell
 flutter config --enable-windows-desktop
 cd example
 flutter build windows --debug
-```
-
-Release packaging smoke:
-
-```powershell
-flutter config --enable-windows-desktop
-cd example
 flutter build windows --release
 ```
 

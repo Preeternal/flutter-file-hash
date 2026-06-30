@@ -28,7 +28,7 @@ final class _PrebuiltZigFilesHashBuilder {
   final BuildOutputBuilder output;
 
   Future<void> run() async {
-    final prebuilt = _prebuiltDynamicLibrary(input.config.code);
+    final prebuilt = await _prebuiltDynamicLibrary(input.config.code);
     final prebuiltFile = File.fromUri(prebuilt);
 
     if (!prebuiltFile.existsSync()) {
@@ -52,7 +52,7 @@ final class _PrebuiltZigFilesHashBuilder {
     output.dependencies.add(prebuilt);
   }
 
-  Uri _prebuiltDynamicLibrary(CodeConfig code) {
+  Future<Uri> _prebuiltDynamicLibrary(CodeConfig code) async {
     final root = input.packageRoot.resolve('$_prebuiltRootPath/');
 
     if (code.targetOS == OS.android) {
@@ -70,9 +70,10 @@ final class _PrebuiltZigFilesHashBuilder {
     }
 
     if (code.targetOS == OS.macOS) {
-      return root.resolve(
+      final universal = root.resolve(
         'macos/universal/${OS.macOS.dylibFileName(_libraryName)}',
       );
+      return _thinMacOSDylib(universal, code.targetArchitecture);
     }
 
     if (code.targetOS == OS.linux) {
@@ -91,6 +92,35 @@ final class _PrebuiltZigFilesHashBuilder {
 
     throw BuildError(message: 'Unsupported target OS: ${code.targetOS}');
   }
+
+  Future<Uri> _thinMacOSDylib(Uri universal, Architecture architecture) async {
+    output.dependencies.add(universal);
+
+    final archName = _macOSLipoArch(architecture);
+    final outputUri = input.outputDirectory.resolve(
+      'zig-files-hash/$archName/${OS.macOS.dylibFileName(_libraryName)}',
+    );
+    final outputFile = File.fromUri(outputUri);
+    await outputFile.parent.create(recursive: true);
+
+    final result = await Process.run('lipo', [
+      universal.toFilePath(),
+      '-thin',
+      archName,
+      '-output',
+      outputFile.path,
+    ]);
+
+    if (result.exitCode != 0) {
+      throw BuildError(
+        message:
+            'Failed to thin macOS flutter_file_hash prebuilt for $archName.\n'
+            '${result.stderr}',
+      );
+    }
+
+    return outputUri;
+  }
 }
 
 String _androidAbi(Architecture arch) {
@@ -108,5 +138,13 @@ String _simpleArch(Architecture arch) {
     Architecture.arm64 => 'arm64',
     Architecture.x64 => 'x64',
     _ => throw BuildError(message: 'Unsupported architecture: $arch'),
+  };
+}
+
+String _macOSLipoArch(Architecture arch) {
+  return switch (arch) {
+    Architecture.arm64 => 'arm64',
+    Architecture.x64 => 'x86_64',
+    _ => throw BuildError(message: 'Unsupported macOS architecture: $arch'),
   };
 }

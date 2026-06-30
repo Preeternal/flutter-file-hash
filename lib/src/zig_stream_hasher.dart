@@ -290,7 +290,7 @@ _RequestAllocation _buildRequest(
 
   if (options.hasSeed) {
     optionsPtr.ref.flags |= zfh.zfhOptionHasSeed;
-    optionsPtr.ref.seed = options.seed.toUnsigned(64);
+    optionsPtr.ref.seed = options.seed;
   }
 
   requestPtr.ref

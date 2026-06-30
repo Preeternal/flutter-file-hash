@@ -5,17 +5,23 @@ import 'hash_algorithm.dart';
 import 'hash_exception.dart';
 import 'hash_options.dart';
 
+final BigInt _u64Max = (BigInt.one << 64) - BigInt.one;
+final BigInt _i64Max = (BigInt.one << 63) - BigInt.one;
+final BigInt _u64Range = BigInt.one << 64;
+
 final class NormalizedHashOptions {
   const NormalizedHashOptions({
     required this.key,
     required this.hasKey,
     required this.seed,
+    required this.seedString,
     required this.hasSeed,
   });
 
   final Uint8List key;
   final bool hasKey;
   final int seed;
+  final String seedString;
   final bool hasSeed;
 }
 
@@ -57,20 +63,74 @@ NormalizedHashOptions normalizeHashOptions(
     );
   }
 
-  final seed = options?.seed ?? 0;
-  if (hasSeed && (seed < 0 || seed.bitLength > 64)) {
+  final seedString = hasSeed ? normalizeXxh3Seed(options!.seed!) : '';
+  final seed = hasSeed ? signedI64FromU64Seed(seedString) : 0;
+
+  return NormalizedHashOptions(
+    key: key,
+    hasKey: hasKey,
+    seed: seed,
+    seedString: seedString,
+    hasSeed: hasSeed,
+  );
+}
+
+String normalizeXxh3Seed(Object seed) {
+  final value = switch (seed) {
+    BigInt value => value,
+    int value => BigInt.from(value),
+    String value => _parseSeedString(value),
+    _ => throw const FlutterFileHashException(
+      code: 'invalid_argument',
+      message:
+          '`seed` must be an int, BigInt, decimal string, or 0x hex string.',
+    ),
+  };
+
+  if (value < BigInt.zero || value > _u64Max) {
     throw const FlutterFileHashException(
       code: 'invalid_argument',
       message: '`seed` must fit into an unsigned 64-bit integer.',
     );
   }
 
-  return NormalizedHashOptions(
-    key: key,
-    hasKey: hasKey,
-    seed: seed,
-    hasSeed: hasSeed,
-  );
+  return formatU64SeedHex(value);
+}
+
+String formatU64SeedHex(BigInt value) {
+  if (value < BigInt.zero || value > _u64Max) {
+    throw const FlutterFileHashException(
+      code: 'invalid_argument',
+      message: '`seed` must fit into an unsigned 64-bit integer.',
+    );
+  }
+
+  return '0x${value.toRadixString(16).padLeft(16, '0')}';
+}
+
+int signedI64FromU64Seed(String seed) {
+  final value = _parseSeedString(seed);
+  final signed = value <= _i64Max ? value : value - _u64Range;
+  return signed.toInt();
+}
+
+BigInt _parseSeedString(String seed) {
+  final normalized = seed.trim();
+  final isHex = normalized.toLowerCase().startsWith('0x');
+  final digits = isHex ? normalized.substring(2) : normalized;
+  final pattern = isHex
+      ? RegExp(r'^[0-9a-fA-F]+$')
+      : RegExp(r'^(0|[1-9][0-9]*)$');
+
+  if (digits.isEmpty || !pattern.hasMatch(digits)) {
+    throw const FlutterFileHashException(
+      code: 'invalid_argument',
+      message:
+          '`seed` must be a non-negative u64 decimal string or 0x hex string.',
+    );
+  }
+
+  return BigInt.parse(digits, radix: isHex ? 16 : 10);
 }
 
 Uint8List _decodeKey(HashOptions options) {

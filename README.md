@@ -142,8 +142,9 @@ final digest = await fileHash(
 );
 ```
 
-`xxh3SeedFromLabel(label)` derives a deterministic seed from a UTF-8 label using
-FNV-1a 64-bit. Use HMAC or keyed BLAKE3 when authenticity matters.
+`xxh3SeedFromLabel(label)` derives a deterministic canonical `0x` seed from a
+UTF-8 label using FNV-1a 64-bit. Use HMAC or keyed BLAKE3 when authenticity
+matters.
 
 ## API
 
@@ -214,7 +215,7 @@ class HashOptions {
 
   final String? key;
   final KeyEncoding keyEncoding;
-  final int? seed;
+  final Object? seed; // int, BigInt, decimal string, or 0x hex string
 }
 ```
 

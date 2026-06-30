@@ -492,7 +492,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
     return const HashOptions(key: _benchmarkKey, keyEncoding: KeyEncoding.utf8);
   }
 
-  int? _buildSeed() {
+  Object? _buildSeed() {
     final raw = switch (_seedInputMode) {
       _SeedInputMode.fromLabel => _seedLabelController.text.trim(),
       _SeedInputMode.decimal => _seedValueController.text.trim(),
@@ -505,11 +505,8 @@ class _HashDemoPageState extends State<HashDemoPage> {
 
     return switch (_seedInputMode) {
       _SeedInputMode.fromLabel => xxh3SeedFromLabel(raw),
-      _SeedInputMode.decimal => int.parse(raw),
-      _SeedInputMode.hex => int.parse(
-        raw.toLowerCase().startsWith('0x') ? raw.substring(2) : raw,
-        radix: 16,
-      ),
+      _SeedInputMode.decimal => raw,
+      _SeedInputMode.hex => raw.toLowerCase().startsWith('0x') ? raw : '0x$raw',
     };
   }
 

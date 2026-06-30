@@ -161,6 +161,7 @@ iOS physical device:
 cd example
 fvm flutter devices
 fvm flutter run -d <ios-device-id>
+fvm flutter run --release
 ```
 
 Physical iOS devices require normal Apple development signing. Configure signing

@@ -86,15 +86,15 @@ String stringHash(
   return result;
 }
 
-int xxh3SeedFromLabel(String label) {
+String xxh3SeedFromLabel(String label) {
   var hash = _fnv1a64OffsetBasis;
 
   for (final byte in convert.utf8.encode(label)) {
-    hash ^= byte;
-    hash = (hash * _fnv1a64Prime).toUnsigned(64);
+    hash ^= BigInt.from(byte);
+    hash = (hash * _fnv1a64Prime) & _u64Max;
   }
 
-  return hash;
+  return formatU64SeedHex(hash);
 }
 
 Future<String> _fileHashNative(
@@ -184,5 +184,6 @@ Uint8List _decodeInput(String input, HashInputEncoding encoding) {
   }
 }
 
-const int _fnv1a64OffsetBasis = 0xcbf29ce484222325;
-const int _fnv1a64Prime = 0x100000001b3;
+final BigInt _u64Max = (BigInt.one << 64) - BigInt.one;
+final BigInt _fnv1a64OffsetBasis = BigInt.parse('cbf29ce484222325', radix: 16);
+final BigInt _fnv1a64Prime = BigInt.parse('100000001b3', radix: 16);

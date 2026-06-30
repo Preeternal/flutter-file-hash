@@ -45,7 +45,7 @@ final class AndroidFileHash {
         'hasKey': options.hasKey,
         'key': options.hasKey ? options.key : null,
         'hasSeed': options.hasSeed,
-        'seed': options.hasSeed ? options.seed.toString() : null,
+        'seed': options.hasSeed ? options.seedString : null,
         'operationId': operationId,
       });
 

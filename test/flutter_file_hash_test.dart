@@ -16,8 +16,9 @@ void main() {
   });
 
   test('derives deterministic XXH3 seeds from labels', () {
-    expect(xxh3SeedFromLabel(''), 0xcbf29ce484222325);
-    expect(xxh3SeedFromLabel('media-cache-v1'), 0x091677a156a7756e);
+    expect(xxh3SeedFromLabel(''), '0xcbf29ce484222325');
+    expect(xxh3SeedFromLabel('media-cache-v1'), '0x091677a156a7756e');
+    expect(xxh3SeedFromLabel('dfg'), '0xca972b18f45fcbd8');
     expect(
       xxh3SeedFromLabel('media-cache-v1'),
       xxh3SeedFromLabel('media-cache-v1'),
@@ -78,6 +79,33 @@ void main() {
     } finally {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  test('normalizes XXH3 seeds before native calls', () {
+    expect(
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: 12345),
+      ),
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '0x0000000000003039'),
+      ),
+    );
+    expect(
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '18446744073709551615'),
+      ),
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '0xffffffffffffffff'),
+      ),
+    );
   });
 
   test('rejects unsupported non-file URI outside Android content resolver', () {

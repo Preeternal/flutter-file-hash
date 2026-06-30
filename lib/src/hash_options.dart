@@ -3,7 +3,12 @@ final class HashOptions {
 
   final String? key;
   final KeyEncoding keyEncoding;
-  final int? seed;
+
+  /// XXH3 unsigned 64-bit seed.
+  ///
+  /// Accepts an `int`, `BigInt`, decimal string, or `0x` hex string. Use a
+  /// string or `BigInt` for values above signed 64-bit range.
+  final Object? seed;
 }
 
 enum KeyEncoding {

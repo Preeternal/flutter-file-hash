@@ -259,21 +259,10 @@ class _HashDemoPageState extends State<HashDemoPage> {
                 ],
                 if (_benchmarkResults.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  _ResultBox(
+                  _BenchmarkResultsBox(
                     palette: palette,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final result in _benchmarkResults)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: SelectableText(
-                              result.summary,
-                              style: _monoStyle(context, palette),
-                            ),
-                          ),
-                      ],
-                    ),
+                    results: _benchmarkResults,
+                    onCopy: _copyBenchmarkResults,
                   ),
                 ],
               ],
@@ -918,6 +907,18 @@ class _HashDemoPageState extends State<HashDemoPage> {
     _benchmarkCancellation?.cancel('Cancelled from example');
   }
 
+  Future<void> _copyBenchmarkResults() async {
+    final text = _benchmarkResults.map((result) => result.summary).join('\n');
+    if (text.isEmpty) {
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      _showMessage('Benchmark results copied');
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -1049,6 +1050,62 @@ class _BenchmarkField extends StatelessWidget {
       decoration: InputDecoration(labelText: label),
       keyboardType: TextInputType.number,
       selectAllOnFocus: true,
+    );
+  }
+}
+
+class _BenchmarkResultsBox extends StatelessWidget {
+  const _BenchmarkResultsBox({
+    required this.palette,
+    required this.results,
+    required this.onCopy,
+  });
+
+  final _Palette palette;
+  final List<_BenchmarkResult> results;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        _ResultBox(
+          palette: palette,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 42),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final result in results)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: SelectableText(
+                      result.summary,
+                      style: _monoStyle(context, palette),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          right: 6,
+          child: Tooltip(
+            message: 'Copy benchmark results',
+            child: IconButton(
+              onPressed: onCopy,
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              color: palette.muted,
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(34),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -14,7 +14,7 @@ final class ZfhOptions extends ffi.Struct {
   @ffi.Uint32()
   external int flags;
 
-  @ffi.Int64()
+  @ffi.Uint64()
   external int seed;
 
   external ffi.Pointer<ffi.Uint8> keyPtr;

@@ -19,6 +19,7 @@ void main() {
     expect(xxh3SeedFromLabel(''), '0xcbf29ce484222325');
     expect(xxh3SeedFromLabel('media-cache-v1'), '0x091677a156a7756e');
     expect(xxh3SeedFromLabel('dfg'), '0xca972b18f45fcbd8');
+    expect(xxh3SeedFromLabel('🔐-cache-v1'), '0x269d7c32f94972b3');
     expect(
       xxh3SeedFromLabel('media-cache-v1'),
       xxh3SeedFromLabel('media-cache-v1'),
@@ -76,6 +77,20 @@ void main() {
           hashOptions: HashOptions(seed: seed),
         ),
       );
+
+      final highBitSeed = xxh3SeedFromLabel('dfg');
+      expect(
+        await fileHash(
+          file.path,
+          algorithm: HashAlgorithm.xxh3_64,
+          hashOptions: HashOptions(seed: highBitSeed),
+        ),
+        stringHash(
+          'abc',
+          algorithm: HashAlgorithm.xxh3_64,
+          hashOptions: HashOptions(seed: highBitSeed),
+        ),
+      );
     } finally {
       await tempDir.delete(recursive: true);
     }
@@ -106,6 +121,50 @@ void main() {
         hashOptions: const HashOptions(seed: '0xffffffffffffffff'),
       ),
     );
+    expect(
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: HashOptions(seed: BigInt.from(12345)),
+      ),
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '0x0000000000003039'),
+      ),
+    );
+    expect(
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '12345678901234567890'),
+      ),
+      stringHash(
+        'abc',
+        algorithm: HashAlgorithm.xxh3_64,
+        hashOptions: const HashOptions(seed: '0xab54a98ceb1f0ad2'),
+      ),
+    );
+  });
+
+  test('rejects invalid XXH3 seeds before native calls', () {
+    for (final seed in <Object>[
+      -1,
+      '-1',
+      'abc',
+      '0x10000000000000000',
+      '18446744073709551616',
+      true,
+    ]) {
+      expect(
+        () => stringHash(
+          'abc',
+          algorithm: HashAlgorithm.xxh3_64,
+          hashOptions: HashOptions(seed: seed),
+        ),
+        throwsA(isA<FlutterFileHashException>()),
+      );
+    }
   });
 
   test('rejects unsupported non-file URI outside Android content resolver', () {

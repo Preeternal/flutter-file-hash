@@ -57,6 +57,24 @@ void main() {
       expect(await fileHash(file.path), stringHash('abc'));
       expect(await fileHash(file.uri.toString()), stringHash('abc'));
       expect(await uriHash(file.uri), stringHash('abc'));
+      expect(
+        await fileHash(file.path, algorithm: HashAlgorithm.xxh3_64),
+        stringHash('abc', algorithm: HashAlgorithm.xxh3_64),
+      );
+
+      final seed = xxh3SeedFromLabel('media-cache-v1');
+      expect(
+        await fileHash(
+          file.path,
+          algorithm: HashAlgorithm.xxh3_64,
+          hashOptions: HashOptions(seed: seed),
+        ),
+        stringHash(
+          'abc',
+          algorithm: HashAlgorithm.xxh3_64,
+          hashOptions: HashOptions(seed: seed),
+        ),
+      );
     } finally {
       await tempDir.delete(recursive: true);
     }

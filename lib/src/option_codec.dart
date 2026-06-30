@@ -5,8 +5,6 @@ import 'hash_algorithm.dart';
 import 'hash_exception.dart';
 import 'hash_options.dart';
 
-const int _u64Max = 0xffffffffffffffff;
-
 final class NormalizedHashOptions {
   const NormalizedHashOptions({
     required this.key,
@@ -60,7 +58,7 @@ NormalizedHashOptions normalizeHashOptions(
   }
 
   final seed = options?.seed ?? 0;
-  if (hasSeed && (seed < 0 || seed > _u64Max)) {
+  if (hasSeed && (seed < 0 || seed.bitLength > 64)) {
     throw const FlutterFileHashException(
       code: 'invalid_argument',
       message: '`seed` must fit into an unsigned 64-bit integer.',

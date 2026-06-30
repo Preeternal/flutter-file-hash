@@ -121,12 +121,8 @@ class _HashDemoPageState extends State<HashDemoPage> {
     text: 'hello world',
   );
   final TextEditingController _keyController = TextEditingController();
-  final TextEditingController _seedLabelController = TextEditingController(
-    text: 'media-cache-v1',
-  );
-  final TextEditingController _seedValueController = TextEditingController(
-    text: '0x091677a156a7756e',
-  );
+  final TextEditingController _seedLabelController = TextEditingController();
+  final TextEditingController _seedValueController = TextEditingController();
   final TextEditingController _benchmarkSizeController = TextEditingController(
     text: '200',
   );

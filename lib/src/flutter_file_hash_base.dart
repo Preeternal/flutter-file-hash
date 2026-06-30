@@ -91,7 +91,7 @@ int xxh3SeedFromLabel(String label) {
 
   for (final byte in convert.utf8.encode(label)) {
     hash ^= byte;
-    hash = (hash * _fnv1a64Prime) & _u64Max;
+    hash = (hash * _fnv1a64Prime).toUnsigned(64);
   }
 
   return hash;
@@ -184,6 +184,5 @@ Uint8List _decodeInput(String input, HashInputEncoding encoding) {
   }
 }
 
-const int _u64Max = 0xffffffffffffffff;
 const int _fnv1a64OffsetBasis = 0xcbf29ce484222325;
 const int _fnv1a64Prime = 0x100000001b3;

@@ -273,8 +273,9 @@ Key rules:
 Plain filesystem paths use one Dart FFI call into `zfh_context_file_hash`; Zig
 opens and streams the file internally.
 
-Android URI inputs cannot be opened with `dart:io File`, so they go through the
-Android plugin layer:
+Android `content://` inputs are the exception to the plain FFI path. They cannot
+be opened with `dart:io File` because the bytes come from `ContentResolver`, not
+from a normal filesystem path. They go through the Android plugin layer:
 
 ```text
 ContentResolver.openInputStream(uri)
@@ -284,6 +285,38 @@ ContentResolver.openInputStream(uri)
 ```
 
 This avoids copying `content://` data into a temporary file before hashing.
+The Android layer only opens the provider stream and feeds that stream into the
+same Zig hash core; it does not add a second Android hash implementation.
+
+In practice, common Flutter pickers may still copy selected provider files into
+cache before returning them, but custom pickers can pass a `content://` URI
+directly and avoid that extra copy.
+
+## FFI/native-assets Template Usage
+
+`flutter_file_hash` uses Flutter's modern `plugin_ffi`/native-assets path for
+the native hash core. The public Dart API talks to one Zig native core through
+the C ABI; platform code is used only where the operating system does not expose
+a regular file path to Dart.
+
+macOS release builds can print a native-assets packaging warning like:
+
+```text
+Code asset "package:flutter_file_hash/src/zig_files_hash_bindings.dart" has
+different framework names for different architectures. Picking
+"zig_files_hash_c_api.framework" and ignoring "zig_files_hash_c_api1.framework".
+```
+
+This comes from Flutter's macOS `code_assets` packaging path when it combines
+multiple architectures into one app bundle. The generated app bundle still
+contains the expected universal native framework, so the warning can be ignored.
+
+The strategy is to keep `plugin_ffi`/native-assets for the Zig core and adopt
+upstream Flutter fixes when macOS native-assets packaging improves. Android
+platform code remains limited to URI access, as described in Android URI
+Streams. If Flutter ever provides a clean FFI/native-assets path for Android
+`content://` inputs, the Android URI bridge can be simplified without changing
+the public Dart API or the Zig core.
 
 ## License
 

@@ -4,7 +4,6 @@
 [![pub downloads](https://img.shields.io/pub/dm/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash)
 [![pub points](https://img.shields.io/pub/points/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash/score)
 [![pub likes](https://img.shields.io/pub/likes/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash/score)
-[![pub popularity](https://img.shields.io/pub/popularity/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash/score)
 
 Native streaming hashes for Flutter files, strings, HMAC, XXH3, and BLAKE3,
 powered by a shared Zig core.

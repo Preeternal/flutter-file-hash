@@ -41,7 +41,7 @@ Dart API
   -> stringHash(input)
     -> Dart FFI
     -> zfh_hasher_init_inplace / update / final
-  -> uriHash(content://...) on Android
+  -> fileHash(content://...) on Android
     -> Android MethodChannel
     -> Kotlin InputStream
     -> JNI bridge

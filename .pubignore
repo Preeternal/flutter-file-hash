@@ -45,3 +45,13 @@ zig-out/
 
 # Keep third_party/zig-files-hash-prebuilt/. Release CI generates these files
 # before `dart pub publish`, and package users must receive them from pub.dev.
+
+# The full Zig source checkout is only needed by maintainers building prebuilts
+# from git. Package users only need the C ABI headers for Android CMake plus the
+# license and ready native artifacts.
+third_party/zig-files-hash/*
+!third_party/zig-files-hash/LICENSE
+!third_party/zig-files-hash/src/
+third_party/zig-files-hash/src/*
+!third_party/zig-files-hash/src/zig_files_hash_c_api.h
+!third_party/zig-files-hash/src/zig_files_hash_c_api_generated.h

@@ -15,10 +15,11 @@ through its C ABI and called from Flutter through FFI/native assets.
 
 ## Status
 
-This package is in active development and is not published yet. The Dart API and
-native build path are usable for local testing.
+This package targets Flutter native platforms through one shared Zig core and
+Flutter native assets. Web is not part of the first native package scope.
 
-Web is not part of the first native package scope.
+The public API is intentionally small: `fileHash` for files and URI strings,
+`stringHash` for small in-memory strings or base64 payloads.
 
 ## Highlights
 
@@ -45,8 +46,14 @@ Web is not part of the first native package scope.
 
 ## Installation
 
-The package is not on pub.dev yet. Use a path dependency while testing a local
-checkout:
+Use the package from pub.dev:
+
+```yaml
+dependencies:
+  flutter_file_hash: ^0.0.1
+```
+
+For local development, use a path dependency:
 
 ```yaml
 dependencies:
@@ -380,7 +387,7 @@ Use physical devices and Release builds for performance claims. Debug,
 simulator, emulator, and VM runs are useful for smoke checks, but they do not
 represent production throughput.
 
-Current manual measurements live in [docs/benchmarks.md](docs/benchmarks.md).
+Current manual measurements live in [doc/benchmarks.md](doc/benchmarks.md).
 
 Practical guidance:
 
@@ -405,7 +412,7 @@ Contributions are welcome.
 - [Setup](CONTRIBUTING.md#setup)
 - [Fast checks](CONTRIBUTING.md#fast-checks)
 - [Running during development](CONTRIBUTING.md#running-during-development)
-- [Benchmarks](docs/benchmarks.md)
+- [Benchmarks](doc/benchmarks.md)
 
 ## License
 

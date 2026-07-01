@@ -1,17 +1,23 @@
 # flutter_file_hash_example
 
-Demonstrates how to use the flutter_file_hash package.
+Example app for [`flutter_file_hash`](https://pub.dev/packages/flutter_file_hash).
 
-## Getting Started
+The app demonstrates the public API and the native file paths that matter for
+real Flutter applications:
 
-This project is a starting point for a Flutter application.
+- selecting a file and hashing it with `fileHash`;
+- Android `content://` input through the Android picker bridge;
+- hashing strings with `stringHash`;
+- SHA, MD5, HMAC, BLAKE3, keyed BLAKE3, and seeded XXH3-64;
+- cooperative cancellation for long-running hashes;
+- benchmark runs with copyable results.
 
-A few resources to get you started if this is your first Flutter project:
+Run from the repository checkout:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+cd example
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Maintainer setup and platform-specific smoke commands are documented in the
+package [CONTRIBUTING.md](../CONTRIBUTING.md).

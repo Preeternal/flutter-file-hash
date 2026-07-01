@@ -39,38 +39,6 @@ Future<String> fileHash(
   );
 }
 
-Future<String> uriHash(
-  Uri uri, {
-  HashAlgorithm algorithm = HashAlgorithm.sha256,
-  HashOptions? hashOptions,
-  HashCancellationToken? cancellationToken,
-}) async {
-  if (uri.scheme.toLowerCase() == 'file') {
-    return fileHash(
-      uri.toFilePath(windows: Platform.isWindows),
-      algorithm: algorithm,
-      hashOptions: hashOptions,
-      cancellationToken: cancellationToken,
-    );
-  }
-
-  if (Platform.isAndroid && uri.scheme.toLowerCase() == 'content') {
-    final normalizedOptions = normalizeHashOptions(algorithm, hashOptions);
-    cancellationToken?.throwIfCancelled();
-    return AndroidFileHash.fileHash(
-      uri.toString(),
-      algorithm: algorithm,
-      options: normalizedOptions,
-      cancellationToken: cancellationToken,
-    );
-  }
-
-  throw FlutterFileHashException(
-    code: 'unsupported_uri',
-    message: '`uriHash` supports file:// URIs and Android content:// URIs.',
-  );
-}
-
 String stringHash(
   String input, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,

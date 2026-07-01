@@ -524,7 +524,6 @@ class _HashDemoPageState extends State<HashDemoPage> {
       hashPath: file.path,
       displayPath: file.path,
       size: size,
-      isUri: false,
     );
   }
 
@@ -549,7 +548,6 @@ class _HashDemoPageState extends State<HashDemoPage> {
       hashPath: uri,
       displayPath: uri,
       size: size is int && size > 0 ? size : 0,
-      isUri: true,
     );
   }
 
@@ -595,19 +593,12 @@ class _HashDemoPageState extends State<HashDemoPage> {
 
     try {
       final started = DateTime.now();
-      final digest = pickedFile.isUri
-          ? await uriHash(
-              Uri.parse(pickedFile.hashPath),
-              algorithm: _selectedAlgorithm,
-              hashOptions: _buildHashOptions(),
-              cancellationToken: controller.token,
-            )
-          : await fileHash(
-              pickedFile.hashPath,
-              algorithm: _selectedAlgorithm,
-              hashOptions: _buildHashOptions(),
-              cancellationToken: controller.token,
-            );
+      final digest = await fileHash(
+        pickedFile.hashPath,
+        algorithm: _selectedAlgorithm,
+        hashOptions: _buildHashOptions(),
+        cancellationToken: controller.token,
+      );
       final elapsed = DateTime.now().difference(started).inMilliseconds;
 
       if (!mounted) {
@@ -1352,14 +1343,12 @@ class _PickedFile {
     required this.hashPath,
     required this.displayPath,
     required this.size,
-    required this.isUri,
   });
 
   final String name;
   final String hashPath;
   final String displayPath;
   final int size;
-  final bool isUri;
 }
 
 class _BenchmarkResult {

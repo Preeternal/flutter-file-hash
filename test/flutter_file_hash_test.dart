@@ -58,7 +58,6 @@ void main() {
 
       expect(await fileHash(file.path), stringHash('abc'));
       expect(await fileHash(file.uri.toString()), stringHash('abc'));
-      expect(await uriHash(file.uri), stringHash('abc'));
       expect(
         await fileHash(file.path, algorithm: HashAlgorithm.xxh3_64),
         stringHash('abc', algorithm: HashAlgorithm.xxh3_64),
@@ -165,19 +164,6 @@ void main() {
         throwsA(isA<FlutterFileHashException>()),
       );
     }
-  });
-
-  test('rejects unsupported non-file URI outside Android content resolver', () {
-    expect(
-      uriHash(Uri.parse('https://example.com/file.bin')),
-      throwsA(
-        isA<FlutterFileHashException>().having(
-          (error) => error.code,
-          'code',
-          'unsupported_uri',
-        ),
-      ),
-    );
   });
 
   test('cancels before opening file input', () async {

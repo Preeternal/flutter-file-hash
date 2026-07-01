@@ -1,16 +1,17 @@
 # flutter_file_hash
 
-Streaming file and string hashes for Flutter, powered by a shared Zig native
-core.
+Native streaming hashes for Flutter files, strings, HMAC, XXH3, and BLAKE3,
+powered by a shared Zig core.
 
-Use it when an app needs to verify downloads, fingerprint media, deduplicate
-local files, build fast cache keys, compare local content, or authenticate data
-with HMAC or keyed BLAKE3.
+Use it when your app needs to verify large downloads, fingerprint media,
+deduplicate local files or cached uploads, generate fast cache keys, compare
+local content, or authenticate data with HMAC or keyed BLAKE3.
 
-`flutter_file_hash` hashes files inside the native core instead of loading full
-files into Dart memory. The hashing core is
-[`zig-files-hash`](https://github.com/Preeternal/zig-files-hash), exposed through
-its C ABI and called from Flutter via native assets.
+Hash large files without loading them into Dart memory. Native code streams
+files in chunks, keeps heavy work off the UI isolate where possible, and returns
+a lowercase hex digest. The hashing core is
+[`zig-files-hash`](https://github.com/Preeternal/zig-files-hash), exposed
+through its C ABI and called from Flutter through FFI/native assets.
 
 ## Status
 
@@ -21,24 +22,25 @@ Web is not part of the first native package scope.
 
 ## Highlights
 
-- Streams file data instead of reading the whole file into memory.
-- Uses one shared Zig hash engine across platforms.
-- Defaults to `SHA-256`.
-- Returns lowercase hex strings.
-- Supports local filesystem paths.
-- Supports `file://` URIs and Android `content://` URIs.
-- Supports HMAC, keyed BLAKE3, and seeded XXH3-64.
-- Supports cooperative cancellation for file hashing.
+- Streams file data from disk instead of loading the whole file into Dart
+  memory.
+- Uses one shared Zig hash engine across supported native platforms.
+- Safe for concurrent calls: each operation owns its native hash state.
+- Defaults to `SHA-256` when you do not pass an algorithm.
+- Supports cooperative cancellation for long-running file hashes.
+- Supports local files, `file://` URIs, and Android `content://` URIs.
+- Returns lowercase hex strings for every algorithm.
+- Includes SHA variants, HMAC algorithms, XXH3-64, BLAKE3, and keyed BLAKE3.
 
-## Platform Support
+## Platform Status
 
-| Platform | Support | Notes |
+| Platform | Status | Engine |
 | --- | --- | --- |
-| Android | Native | Filesystem paths through Dart FFI; `content://` through Android opener |
-| iOS | Native | Filesystem paths through Dart FFI |
-| macOS | Native | Filesystem paths through Dart FFI |
-| Linux | Native | Filesystem paths through Dart FFI |
-| Windows | Native | Filesystem paths through Dart FFI |
+| Android | Native | `zig`; `content://` through Android opener |
+| iOS | Native | `zig` |
+| macOS | Native | `zig` |
+| Linux | Native | `zig` |
+| Windows | Native | `zig` |
 | Web | Not planned yet | Would need a separate WASM/browser path |
 
 ## Installation
@@ -63,21 +65,27 @@ import 'package:flutter_file_hash/flutter_file_hash.dart';
 final digest = await fileHash('/path/to/video.mp4');
 // SHA-256 lowercase hex by default
 
-final uriDigest = await uriHash(Uri.file('/path/to/video.mp4'));
+final xxh3 = await fileHash(
+  '/path/to/video.mp4',
+  algorithm: HashAlgorithm.xxh3_64,
+);
 
 final textDigest = stringHash('hello world');
 ```
 
-For large payloads, prefer `fileHash`. `stringHash` is intended for strings or
-base64 payloads already in Dart memory.
+For large payloads, prefer `fileHash`. `stringHash` is intended for small
+strings or small base64 payloads already in Dart memory.
 
-## Cancellation
+## Cancel Long Hashes
 
 ```dart
+import 'package:flutter_file_hash/flutter_file_hash.dart';
+
 final controller = HashCancellationController();
 
 final future = fileHash(
   '/path/to/large-file.bin',
+  algorithm: HashAlgorithm.sha256,
   cancellationToken: controller.token,
 );
 
@@ -86,23 +94,23 @@ controller.cancel();
 try {
   await future;
 } on FlutterFileHashCancelledException {
-  // Hashing was cancelled.
+  // Hash was cancelled.
 }
 ```
 
-Cancellation is cooperative. File hashing stops at chunk boundaries. Small
-`stringHash` calls may complete before cancellation is observed.
+Cancellation is cooperative. Large file hashes stop at chunk boundaries. Small
+`stringHash` calls may finish before cancellation is observed.
 
 ## HMAC And Keyed BLAKE3
 
 HMAC is selected by the algorithm:
 
 ```dart
-final digest = await fileHash(
+final hmac = await fileHash(
   '/path/to/upload.bin',
   algorithm: HashAlgorithm.hmacSha256,
   hashOptions: const HashOptions(
-    key: 'upload-signing-secret',
+    key: 'super-secret',
     keyEncoding: KeyEncoding.utf8,
   ),
 );
@@ -112,8 +120,8 @@ Keyed BLAKE3 uses the regular `BLAKE3` algorithm with a key. The decoded key
 must be 32 bytes:
 
 ```dart
-final digest = stringHash(
-  'payload',
+final keyed = await fileHash(
+  '/path/to/upload.bin',
   algorithm: HashAlgorithm.blake3,
   hashOptions: const HashOptions(
     key: '3031323334353637383961626364656630313233343536373839616263646566',
@@ -122,35 +130,115 @@ final digest = stringHash(
 );
 ```
 
-`keyEncoding` can be `utf8`, `hex`, or `base64`. The default is `utf8`. HMAC
-algorithms require `hashOptions.key`; pass `key: ''` explicitly for HMAC with an
-empty key.
+`keyEncoding` can be `utf8`, `hex`, or `base64`. The default is `utf8`. For
+`BLAKE3`, `hashOptions.key` is optional: omit it for regular BLAKE3, pass it
+only when you want keyed BLAKE3.
+
+HMAC algorithms require `hashOptions.key`. If you intentionally need HMAC with
+an empty key, pass `key: ''` explicitly; omitting `key` is rejected.
 
 ## Seeded XXH3
 
-`XXH3-64` supports an optional unsigned 64-bit seed. A seed is not secret and
-does not make XXH3 cryptographic. It selects a reproducible namespace: the same
-bytes, algorithm, and seed produce the same digest.
+`XXH3-64` supports an optional unsigned 64-bit seed. Omit it for regular
+unseeded XXH3. A seed is not a secret and does not make XXH3 cryptographic. It
+selects a reproducible XXH3 namespace: the same bytes, algorithm, and seed
+produce the same digest on your backend, CLI tools, and Flutter app.
+
+The most direct use case is server-side verification. For example, your backend
+can publish a download manifest with both the expected XXH3 digest and the seed
+that was used to compute it:
 
 ```dart
-final seed = xxh3SeedFromLabel('media-cache-v1');
+const manifestSeed = '12345678901234567890';
+const manifestXxh3 = '4b5e0a417dfa7ed2';
 
-final digest = await fileHash(
+final actual = await fileHash(
+  '/path/to/downloaded/video.mp4',
+  algorithm: HashAlgorithm.xxh3_64,
+  hashOptions: const HashOptions(seed: manifestSeed),
+);
+
+if (actual != manifestXxh3) {
+  throw StateError('Downloaded file failed checksum verification');
+}
+```
+
+Pass large `u64` seeds from a backend as strings, either decimal or `0x` hex.
+Use a string or `BigInt` for values above the signed 64-bit range.
+
+For app-owned namespaces, you can derive a stable seed from a readable label:
+
+```dart
+final mediaCacheSeed = xxh3SeedFromLabel('media-cache-v1');
+
+final cacheKey = await fileHash(
   '/path/to/media.bin',
   algorithm: HashAlgorithm.xxh3_64,
-  hashOptions: HashOptions(seed: seed),
+  hashOptions: HashOptions(seed: mediaCacheSeed),
 );
 ```
 
-`xxh3SeedFromLabel(label)` derives a deterministic canonical `0x` seed from a
-UTF-8 label using FNV-1a 64-bit. Use HMAC or keyed BLAKE3 when authenticity
-matters.
+`hashOptions.seed` accepts an `int`, a `BigInt`, a decimal string, or a `0x` hex
+string. Values are normalized before native hashing, so `12345`,
+`BigInt.from(12345)`, and `'0x3039'` all use the same seed.
+
+`xxh3SeedFromLabel(label)` derives a deterministic seed from a UTF-8 label
+using FNV-1a 64-bit. The helper returns a canonical `0x` hex seed, for example
+`0x091677a156a7756e`. Use it when the app controls the namespace, such as
+`media-cache-v1` or `upload-dedupe-v2`. If a backend or CLI must reproduce the
+same hashes, share either the derived seed value or the exact label derivation
+rule. Use HMAC or keyed BLAKE3 when authenticity matters.
 
 ## API
 
 ### `fileHash(path, ...)`
 
-Hashes a local file path and returns a lowercase hex digest.
+Hashes a file by streaming it from native code.
+
+```dart
+final mac = await fileHash(
+  '/path/to/upload.bin',
+  algorithm: HashAlgorithm.hmacSha256,
+  hashOptions: const HashOptions(
+    key: 'upload-signing-secret',
+    keyEncoding: KeyEncoding.utf8,
+  ),
+  cancellationToken: controller.token,
+);
+```
+
+`path` can be:
+
+- a local filesystem path;
+- a `file://` URI string;
+- an Android `content://` URI string, for example from the system document
+  picker.
+
+If `algorithm` is omitted, `SHA-256` is used. Use `hashOptions.key` only with
+HMAC algorithms or keyed `BLAKE3`; regular hashes reject keys.
+
+### `stringHash(input, ...)`
+
+Hashes a small Dart string or base64 payload.
+
+```dart
+final digest = stringHash(
+  'hello world',
+  algorithm: HashAlgorithm.sha256,
+  encoding: HashInputEncoding.utf8,
+);
+
+final fromBase64 = stringHash(
+  base64Payload,
+  algorithm: HashAlgorithm.blake3,
+  encoding: HashInputEncoding.base64,
+);
+```
+
+If `algorithm` is omitted, `SHA-256` is used. If `encoding` is omitted, `utf8`
+is used.
+
+### Request Types
 
 ```dart
 Future<String> fileHash(
@@ -159,39 +247,7 @@ Future<String> fileHash(
   HashOptions? hashOptions,
   HashCancellationToken? cancellationToken,
 });
-```
 
-`path` can be:
-
-- a local filesystem path;
-- a `file://` URI string;
-- an Android `content://` URI string for compatibility.
-
-Prefer `uriHash(Uri)` when the input is already a URI.
-
-### `uriHash(uri, ...)`
-
-Hashes a supported URI and returns a lowercase hex digest.
-
-```dart
-Future<String> uriHash(
-  Uri uri, {
-  HashAlgorithm algorithm = HashAlgorithm.sha256,
-  HashOptions? hashOptions,
-  HashCancellationToken? cancellationToken,
-});
-```
-
-Supported URI schemes:
-
-- `file://` on all native platforms;
-- `content://` on Android.
-
-### `stringHash(input, ...)`
-
-Hashes a small string or base64 payload and returns a lowercase hex digest.
-
-```dart
 String stringHash(
   String input, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
@@ -199,14 +255,8 @@ String stringHash(
   HashOptions? hashOptions,
   HashCancellationToken? cancellationToken,
 });
-```
 
-If `encoding` is omitted, `utf8` is used.
-
-### `HashOptions`
-
-```dart
-class HashOptions {
+final class HashOptions {
   const HashOptions({
     this.key,
     this.keyEncoding = KeyEncoding.utf8,
@@ -221,41 +271,45 @@ class HashOptions {
 
 ## Algorithms
 
-| Algorithm | Notes |
-| --- | --- |
-| `SHA-224` | SHA-2 compatibility variant |
-| `SHA-256` | Default general-purpose cryptographic hash |
-| `SHA-384` | SHA-2 variant |
-| `SHA-512` | SHA-2 variant |
-| `SHA-512/224` | SHA-2 compatibility variant |
-| `SHA-512/256` | SHA-2 compatibility variant |
-| `MD5` | Legacy compatibility; avoid for new security-sensitive designs |
-| `SHA-1` | Legacy compatibility; avoid for new security-sensitive designs |
-| `XXH3-64` | Fast non-cryptographic checksum; supports optional seed |
-| `BLAKE3` | Modern high-performance hash; supports keyed mode |
-| `HMAC-SHA-224` | HMAC compatibility variant |
-| `HMAC-SHA-256` | Good default HMAC choice |
-| `HMAC-SHA-384` | HMAC SHA-2 variant |
-| `HMAC-SHA-512` | HMAC SHA-2 variant |
-| `HMAC-MD5` | Legacy HMAC compatibility |
-| `HMAC-SHA-1` | Legacy HMAC compatibility |
+| Algorithm | Use case | Notes |
+| --- | --- | --- |
+| `SHA-256` | Default general-purpose cryptographic hash | Good default for integrity checks |
+| `SHA-384`, `SHA-512` | Stronger SHA-2 variants | Larger output, usually slower |
+| `SHA-224`, `SHA-512/224`, `SHA-512/256` | SHA-2 compatibility variants | Useful for protocols requiring these exact digests |
+| `MD5`, `SHA-1` | Legacy compatibility | Do not use for new security-sensitive designs |
+| `HMAC-SHA-256` | Shared-secret authentication | Good default HMAC choice |
+| `HMAC-SHA-224/384/512`, `HMAC-MD5`, `HMAC-SHA-1` | Protocol compatibility | Prefer SHA-256+ for new designs |
+| `XXH3-64` | Fast non-cryptographic checksum | Supports optional seed; not authentication |
+| `BLAKE3` | Modern high-performance hash | Also supports keyed mode with a 32-byte key |
 
 `XXH3-128` is intentionally not exposed because it is not present in
 `zig-files-hash` C ABI v3.
+
+### Output Lengths
+
+| Algorithm | Output length |
+| --- | --- |
+| `MD5`, `HMAC-MD5` | 16 bytes, 32 hex chars |
+| `SHA-1`, `HMAC-SHA-1` | 20 bytes, 40 hex chars |
+| `SHA-224`, `HMAC-SHA-224`, `SHA-512/224` | 28 bytes, 56 hex chars |
+| `SHA-256`, `HMAC-SHA-256`, `SHA-512/256`, `BLAKE3` | 32 bytes, 64 hex chars |
+| `SHA-384`, `HMAC-SHA-384` | 48 bytes, 96 hex chars |
+| `SHA-512`, `HMAC-SHA-512` | 64 bytes, 128 hex chars |
+| `XXH3-64` | 8 bytes, 16 hex chars |
 
 ## Error Handling
 
 Errors are thrown as `FlutterFileHashException` with a stable `code`.
 
-Common codes:
+Common error codes:
 
 | Code | Meaning |
 | --- | --- |
 | `cancelled` | Operation was cancelled |
-| `invalid_argument` | Invalid input or option combination |
-| `unsupported_algorithm` | Algorithm is not available |
-| `invalid_key` | Key cannot be used or has the wrong length |
+| `invalid_argument` | Invalid algorithm/options combination |
+| `invalid_key` | Key cannot be decoded or has the wrong length |
 | `file_not_found` | File or URI cannot be opened |
+| `unsupported_algorithm` | Algorithm is not available |
 | `access_denied` | Platform denied access to the file or URI |
 | `invalid_path` | Path cannot be interpreted by the native layer |
 | `io_error` | File I/O failed |
@@ -263,10 +317,12 @@ Common codes:
 
 Key rules:
 
-- HMAC algorithms require `hashOptions.key`.
+- HMAC algorithms require `hashOptions.key`; pass `key: ''` explicitly for an
+  empty HMAC key.
+- `BLAKE3` uses keyed mode only when `hashOptions.key` is provided.
 - `BLAKE3` keyed mode requires a 32-byte key after decoding.
-- Other non-HMAC algorithms reject `hashOptions.key`, except keyed `BLAKE3`.
-- `hashOptions.seed` is valid only for `XXH3-64`.
+- Other algorithms reject `hashOptions.key`.
+- `hashOptions.seed` is only valid for `XXH3-64`.
 
 ## Android URI Streams
 
@@ -284,9 +340,9 @@ ContentResolver.openInputStream(uri)
   -> zfh_hasher_update / zfh_hasher_final
 ```
 
-This avoids copying `content://` data into a temporary file before hashing.
-The Android layer only opens the provider stream and feeds that stream into the
-same Zig hash core; it does not add a second Android hash implementation.
+This avoids copying `content://` data into a temporary file before hashing. The
+Android layer only opens the provider stream and feeds that stream into the same
+Zig hash core; it does not add a second Android hash implementation.
 
 In practice, common Flutter pickers may still copy selected provider files into
 cache before returning them, but custom pickers can pass a `content://` URI
@@ -318,6 +374,41 @@ Streams. If Flutter ever provides a clean FFI/native-assets path for Android
 `content://` inputs, the Android URI bridge can be simplified without changing
 the public Dart API or the Zig core.
 
+## Performance
+
+Use physical devices and Release builds for performance claims. Debug,
+simulator, emulator, and VM runs are useful for smoke checks, but they do not
+represent production throughput.
+
+Current manual measurements live in [docs/benchmarks.md](docs/benchmarks.md).
+
+Practical guidance:
+
+- Use `SHA-256` for general integrity checks.
+- Use `XXH3-64` for fast non-security checksums.
+- Use `HMAC-SHA-256` for shared-secret authentication.
+- Use keyed `BLAKE3` when you need BLAKE3 with a fixed 32-byte secret key.
+- Avoid `MD5` and `SHA-1` for new security-sensitive designs.
+
+## Native Implementation
+
+- Hash core:
+  [Preeternal/zig-files-hash](https://github.com/Preeternal/zig-files-hash)
+
+Package users do not need a local Zig toolchain; release artifacts include Zig
+prebuilts.
+
+## Contributing
+
+Contributions are welcome.
+
+- [Setup](CONTRIBUTING.md#setup)
+- [Fast checks](CONTRIBUTING.md#fast-checks)
+- [Running during development](CONTRIBUTING.md#running-during-development)
+- [Benchmarks](docs/benchmarks.md)
+
 ## License
 
 MIT. See [LICENSE](LICENSE) for details.
+
+Built on Flutter's `plugin_ffi`/native-assets template.

@@ -1,3 +1,18 @@
+# Releases
+
+## 0.0.2
+
+* Add dartdoc comments for the public Dart API, including `fileHash`,
+  `stringHash`, `HashAlgorithm`, `HashOptions`, cancellation types, and package
+  exceptions.
+* Improve pub.dev score readiness by documenting the exported API surface.
+* Simplify README badges to match the React Native package style: package
+  version and monthly downloads.
+* Align the pub.dev publishing workflow with tag-based GitHub Actions
+  publishing.
+
+---
+
 ## 0.0.1
 
 * Initial release of `flutter_file_hash`, a Flutter wrapper around the

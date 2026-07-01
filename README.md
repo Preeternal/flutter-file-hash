@@ -53,7 +53,7 @@ Use the package from pub.dev:
 
 ```yaml
 dependencies:
-  flutter_file_hash: ^0.0.1
+  flutter_file_hash: ^0.0.2
 ```
 
 For local development, use a path dependency:

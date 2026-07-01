@@ -280,10 +280,11 @@ The intended release model is that app developers add the Flutter package and
 build their app normally. They should not need to install Zig or run scripts
 from this repository.
 
-The release flow follows the same principle as `react-native-file-hash`: create
-and publish a GitHub Release for a version tag, then GitHub Actions publishes
-the package. Publishing is triggered by `release.published`, not by plain tag
-push.
+The release flow follows the same principle as `react-native-file-hash`: each
+public version has a matching `vX.Y.Z` git tag and GitHub Release. For pub.dev
+automated publishing, publishing is triggered by pushing a version tag that
+matches `pubspec.yaml`, using the tag pattern configured in pub.dev admin:
+`v{{version}}`.
 
 The first pub.dev release must be published manually by a package owner. After
 that, configure pub.dev automated publishing / trusted publisher for this
@@ -291,7 +292,7 @@ repository and `.github/workflows/pub-publish.yml`.
 
 Release CI:
 
-- checks that `pubspec.yaml` version matches the GitHub Release tag;
+- checks that `pubspec.yaml` version matches the pushed git tag;
 - runs format, analyze, and tests;
 - builds the full native prebuilt matrix;
 - checks required artifacts with `scripts/check-prebuilts.sh`;
@@ -300,9 +301,21 @@ Release CI:
 
 Before tagging a release:
 
+- update `pubspec.yaml`;
+- update `CHANGELOG.md`;
 - run the platform smoke builds for the release targets;
 - verify Android `content://` streaming at runtime;
 - verify the example app on at least one desktop or Apple platform.
+
+Tag and publish a release after committing the version bump:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+The tag push starts the pub.dev publish workflow. Create the GitHub Release from
+the same tag so the repository keeps human-readable release notes.
 
 ## CI
 

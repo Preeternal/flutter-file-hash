@@ -317,6 +317,11 @@ git push origin vX.Y.Z
 The tag push starts the pub.dev publish workflow. Create the GitHub Release from
 the same tag so the repository keeps human-readable release notes.
 
+If a tag-triggered publish needs to be retried without moving a tag, use the
+`Manual Publish` workflow from GitHub Actions. Pub.dev must have
+`workflow_dispatch` publishing enabled for this repository; otherwise pub.dev
+will reject the manual run during `dart pub publish`.
+
 ## CI
 
 The GitHub Actions workflow mirrors the expected platform checks:

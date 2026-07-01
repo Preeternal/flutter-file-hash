@@ -1,9 +1,7 @@
-name: Publish Dart Package
+name: Manual Publish
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch: {}
 
 jobs:
   publish:
@@ -30,26 +28,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Verify tag version
-        run: |
-          set -euo pipefail
-
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
-          EXPECTED_TAG="v${VERSION}"
-
-          if [[ "${TAG}" != v* ]]; then
-            echo "::error::Publishing must run from a v-prefixed git tag. Current ref: ${TAG}"
-            exit 1
-          fi
-
-          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
-            echo "::error::Release tag ${TAG} does not match pubspec.yaml version ${VERSION}. Expected ${EXPECTED_TAG}."
-            exit 1
-          fi
-
-          echo "Publishing version ${VERSION} from tag ${TAG}."
 
       - name: Ensure version not already on pub.dev
         run: |

@@ -12,6 +12,11 @@ import 'hash_options.dart';
 import 'option_codec.dart';
 import 'zig_stream_hasher.dart';
 
+/// Hashes a file or URI string and returns a lowercase hexadecimal digest.
+///
+/// Local file paths and `file://` URIs are handled on every native platform.
+/// Android `content://` URIs are routed through the Android plugin opener.
+/// The default [algorithm] is [HashAlgorithm.sha256].
 Future<String> fileHash(
   String path, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
@@ -39,6 +44,11 @@ Future<String> fileHash(
   );
 }
 
+/// Hashes an in-memory string and returns a lowercase hexadecimal digest.
+///
+/// Use [encoding] to choose whether [input] is treated as UTF-8 text or base64
+/// data. File inputs should use [fileHash] so the native layer can stream from
+/// disk instead of loading the whole file into Dart memory.
 String stringHash(
   String input, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
@@ -54,6 +64,9 @@ String stringHash(
   return result;
 }
 
+/// Builds a stable unsigned 64-bit XXH3 seed from a UTF-8 label.
+///
+/// The returned value is a `0x` hex string accepted by [HashOptions.seed].
 String xxh3SeedFromLabel(String label) {
   var hash = _fnv1a64OffsetBasis;
 

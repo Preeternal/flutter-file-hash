@@ -127,10 +127,16 @@ cp "${TMP_DIR}/macos-universal.dylib" "${OUT_DIR}/universal/libzig_files_hash_c_
 mkdir -p "${TMP_DIR}/macos"
 cp "${TMP_DIR}/macos-universal.a" "${TMP_DIR}/macos/libzig_files_hash.a"
 
+# Collect only the public C headers; skip all .zig sources, tests, and internals.
+mkdir -p "${TMP_DIR}/xcframework-headers"
+cp "${ZIG_CORE_DIR}/src/zig_files_hash_c_api.h" \
+    "${ZIG_CORE_DIR}/src/zig_files_hash_c_api_generated.h" \
+    "${TMP_DIR}/xcframework-headers/"
+
 echo "Creating ZigFilesHash.xcframework..."
 xcodebuild -create-xcframework \
   -library "${TMP_DIR}/macos/libzig_files_hash.a" \
-  -headers "${ZIG_CORE_DIR}/src" \
+  -headers "${TMP_DIR}/xcframework-headers" \
   -output "${OUT_DIR}/ZigFilesHash.xcframework"
 
 echo "Done. macOS Zig prebuilt framework is in:"

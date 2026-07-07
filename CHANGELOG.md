@@ -1,5 +1,20 @@
 # Releases
 
+## 0.0.3
+
+* Keep iOS and macOS XCFramework headers limited to the public C API headers
+  so Zig source files, tests, and internals are not bundled in published
+  native artifacts.
+* Add per-platform prebuilt artifact checks to CI after each native build.
+* Strengthen prebuilt validation for CI and pub.dev publishing by rejecting
+  unexpected Zig source/test files inside generated prebuilts.
+* Update the bundled `zig-files-hash` core to `v0.0.6`, which fixes upstream
+  Windows MSVC static C ABI linking by bundling Zig compiler-rt. This package's
+  Windows artifacts use a different build path, so no Flutter Windows behavior
+  change is expected from that upstream fix.
+
+---
+
 ## 0.0.2
 
 * Add dartdoc comments for the public Dart API, including `fileHash`,

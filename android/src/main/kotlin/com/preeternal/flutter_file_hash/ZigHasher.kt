@@ -9,6 +9,15 @@ internal object ZigHasher {
 
     external fun expectedApiVersion(): Int
 
+    external fun fileHashFd(
+        algorithmId: Int,
+        fd: Int,
+        key: ByteArray?,
+        seed: Long,
+        hasSeed: Boolean,
+        operationId: String?
+    ): ByteArray?
+
     external fun streamHasherCreate(
         algorithmId: Int,
         key: ByteArray?,

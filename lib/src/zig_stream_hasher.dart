@@ -14,6 +14,7 @@ String zigFileHashPath(
   String path,
   HashAlgorithm algorithm,
   NormalizedHashOptions options, {
+  bool useMmap = false,
   int operationPtrAddress = 0,
   int operationLen = 0,
 }) {
@@ -28,6 +29,7 @@ String zigFileHashPath(
   ffi.Pointer<zfh.ZfhContext>? ctxPtr;
   final request = _buildRequest(
     options,
+    useMmap: useMmap,
     operationPtrAddress: operationPtrAddress,
     operationLen: operationLen,
   );
@@ -252,16 +254,18 @@ String _errorCode(int code) {
 
 _RequestAllocation _buildRequest(
   NormalizedHashOptions options, {
+  bool useMmap = false,
   int operationPtrAddress = 0,
   int operationLen = 0,
 }) {
   final hasOperation = operationPtrAddress != 0 && operationLen > 0;
-  if (!options.hasKey && !options.hasSeed && !hasOperation) {
+  final hasOptions = options.hasKey || options.hasSeed || useMmap;
+  if (!hasOptions && !hasOperation) {
     return _RequestAllocation.empty();
   }
 
   final requestPtr = pkg_ffi.calloc<zfh.ZfhRequest>();
-  final optionsPtr = options.hasKey || options.hasSeed
+  final optionsPtr = hasOptions
       ? pkg_ffi.calloc<zfh.ZfhOptions>()
       : ffi.nullptr;
   ffi.Pointer<ffi.Uint8>? keyPtr;
@@ -291,6 +295,10 @@ _RequestAllocation _buildRequest(
   if (options.hasSeed) {
     optionsPtr.ref.flags |= zfh.zfhOptionHasSeed;
     optionsPtr.ref.seed = options.seed.toUnsigned(64);
+  }
+
+  if (useMmap) {
+    optionsPtr.ref.flags |= zfh.zfhOptionUseMmap;
   }
 
   requestPtr.ref

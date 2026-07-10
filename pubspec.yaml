@@ -1,6 +1,6 @@
 name: flutter_file_hash
-description: "Native Flutter file and string hashing powered by Zig, with SHA, MD5, HMAC, BLAKE3, XXH3, cancellation, and Android content:// streams."
-version: 0.0.3
+description: "Native Flutter file and string hashing powered by Zig, with SHA, MD5, HMAC, BLAKE3, XXH3, cancellation, mmap, and Android content:// support."
+version: 0.0.4
 repository: https://github.com/Preeternal/flutter-file-hash
 
 environment:

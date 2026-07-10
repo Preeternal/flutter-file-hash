@@ -13,6 +13,18 @@ jint ApiVersion();
 
 jint ExpectedApiVersion();
 
+bool FileHashFd(
+    JNIEnv *env,
+    jint algorithm_id,
+    jint fd,
+    bool has_key,
+    const std::vector<uint8_t> &key,
+    bool has_seed,
+    uint64_t seed,
+    const std::string &operation_id,
+    std::vector<uint8_t> *out_digest
+);
+
 bool StreamHasherCreate(
     JNIEnv *env,
     jint algorithm_id,

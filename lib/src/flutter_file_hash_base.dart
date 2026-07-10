@@ -16,11 +16,14 @@ import 'zig_stream_hasher.dart';
 ///
 /// Local file paths and `file://` URIs are handled on every native platform.
 /// Android `content://` URIs are routed through the Android plugin opener.
+/// Set [useMmap] only for stable regular local files after benchmarking: it is
+/// disabled by default and has no effect for `content://` inputs.
 /// The default [algorithm] is [HashAlgorithm.sha256].
 Future<String> fileHash(
   String path, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
   HashOptions? hashOptions,
+  bool useMmap = false,
   HashCancellationToken? cancellationToken,
 }) async {
   final normalizedOptions = normalizeHashOptions(algorithm, hashOptions);
@@ -40,6 +43,7 @@ Future<String> fileHash(
     dartPath,
     algorithm,
     normalizedOptions,
+    useMmap,
     cancellationToken,
   );
 }
@@ -82,6 +86,7 @@ Future<String> _fileHashNative(
   String path,
   HashAlgorithm algorithm,
   NormalizedHashOptions options,
+  bool useMmap,
   HashCancellationToken? cancellationToken,
 ) async {
   cancellationToken?.throwIfCancelled();
@@ -104,6 +109,7 @@ Future<String> _fileHashNative(
         path,
         algorithm,
         options,
+        useMmap: useMmap,
         operationPtrAddress: operationAddress,
         operationLen: operationLength,
       ),

@@ -6,6 +6,7 @@ const int zfhApiVersionExpected = 4;
 const int zfhOk = 0;
 const int zfhOptionHasSeed = 1 << 0;
 const int zfhOptionHasKey = 1 << 1;
+const int zfhOptionUseMmap = 1 << 2;
 
 final class ZfhOptions extends ffi.Struct {
   @ffi.Uint32()

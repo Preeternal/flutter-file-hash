@@ -33,6 +33,7 @@ The public API is intentionally small: `fileHash` for files and URI strings,
 - Defaults to `SHA-256` when you do not pass an algorithm.
 - Supports cooperative cancellation for long-running file hashes.
 - Supports local files, `file://` URIs, and Android `content://` URIs.
+- Provides opt-in mmap I/O for stable regular local files.
 - Returns lowercase hex strings for every algorithm.
 - Includes SHA variants, HMAC algorithms, XXH3-64, BLAKE3, and keyed BLAKE3.
 
@@ -53,7 +54,7 @@ Use the package from pub.dev:
 
 ```yaml
 dependencies:
-  flutter_file_hash: ^0.0.2
+  flutter_file_hash: ^0.0.4
 ```
 
 For local development, use a path dependency:
@@ -78,6 +79,11 @@ final digest = await fileHash('/path/to/video.mp4');
 final xxh3 = await fileHash(
   '/path/to/video.mp4',
   algorithm: HashAlgorithm.xxh3_64,
+);
+
+final localMmap = await fileHash(
+  '/path/to/stable-large-file.bin',
+  useMmap: true,
 );
 
 final textDigest = stringHash('hello world');
@@ -227,6 +233,13 @@ final mac = await fileHash(
 If `algorithm` is omitted, `SHA-256` is used. Use `hashOptions.key` only with
 HMAC algorithms or keyed `BLAKE3`; regular hashes reject keys.
 
+`useMmap` defaults to `false`. Set it only for a stable, non-empty regular
+local file after benchmarking your workload. It is an I/O optimization: the
+digest does not change. The option applies to the path fast path only, so it is
+ignored for Android `content://` descriptors. Do not enable it while another
+process can truncate or modify the file: a mapped file may fault, including
+with `SIGBUS` on POSIX.
+
 ### `stringHash(input, ...)`
 
 Hashes a small Dart string or base64 payload.
@@ -255,6 +268,7 @@ Future<String> fileHash(
   String path, {
   HashAlgorithm algorithm = HashAlgorithm.sha256,
   HashOptions? hashOptions,
+  bool useMmap = false,
   HashCancellationToken? cancellationToken,
 });
 
@@ -341,18 +355,20 @@ opens and streams the file internally.
 
 Android `content://` inputs are the exception to the plain FFI path. They cannot
 be opened with `dart:io File` because the bytes come from `ContentResolver`, not
-from a normal filesystem path. They go through the Android plugin layer:
+from a normal filesystem path. The Android plugin opens a descriptor and passes
+it to Zig in one native call:
 
 ```text
-ContentResolver.openInputStream(uri)
-  -> Kotlin 64 KiB chunk loop
+ContentResolver.openFileDescriptor(uri, "r")
   -> JNI
-  -> zfh_hasher_update / zfh_hasher_final
+  -> zfh_fd_hash
+    -> Zig 64 KiB read loop
 ```
 
-This avoids copying `content://` data into a temporary file before hashing. The
-Android layer only opens the provider stream and feeds that stream into the same
-Zig hash core; it does not add a second Android hash implementation.
+Zig reads from the descriptor's current position and never closes it; Kotlin
+owns the `ParcelFileDescriptor` lifetime. If a provider exposes only a stream,
+the plugin keeps the existing `ContentResolver.openInputStream` + streaming
+hasher fallback. Neither path copies `content://` data into a temporary file.
 
 In practice, common Flutter pickers may still copy selected provider files into
 cache before returning them, but custom pickers can pass a `content://` URI
@@ -379,10 +395,8 @@ contains the expected universal native framework, so the warning can be ignored.
 
 The strategy is to keep `plugin_ffi`/native-assets for the Zig core and adopt
 upstream Flutter fixes when macOS native-assets packaging improves. Android
-platform code remains limited to URI access, as described in Android URI
-Streams. If Flutter ever provides a clean FFI/native-assets path for Android
-`content://` inputs, the Android URI bridge can be simplified without changing
-the public Dart API or the Zig core.
+platform code remains limited to opening provider URIs, as described in Android
+URI Streams.
 
 ## Performance
 

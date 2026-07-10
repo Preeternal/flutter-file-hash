@@ -12,6 +12,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.FileNotFoundException
+import android.net.Uri
+import android.os.ParcelFileDescriptor
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -91,7 +93,7 @@ class FlutterFileHashPlugin :
             try {
                 val seed = parseUnsignedSeed(call.argument<String>("seed"))
                 operation?.throwIfCancelled()
-                val hex = hashUriStreaming(
+                val hex = hashUri(
                     path = path,
                     algorithmId = algorithmId,
                     key = if (hasKey) key ?: ByteArray(0) else null,
@@ -118,6 +120,69 @@ class FlutterFileHashPlugin :
             } finally {
                 finishOperation(operation)
             }
+        }
+    }
+
+    private fun hashUri(
+        path: String,
+        algorithmId: Int,
+        key: ByteArray?,
+        seed: Long,
+        hasSeed: Boolean,
+        operation: HashOperation?
+    ): String {
+        val uri = Uri.parse(path)
+        if (uri.scheme.equals("content", ignoreCase = true)) {
+            val descriptor = try {
+                binding.applicationContext.contentResolver.openFileDescriptor(uri, "r")
+            } catch (_: FileNotFoundException) {
+                // Some virtual document providers expose a stream but not an fd.
+                null
+            }
+
+            if (descriptor != null) {
+                return hashFileDescriptor(
+                    descriptor = descriptor,
+                    algorithmId = algorithmId,
+                    key = key,
+                    seed = seed,
+                    hasSeed = hasSeed,
+                    operation = operation
+                )
+            }
+        }
+
+        return hashUriStreaming(path, algorithmId, key, seed, hasSeed, operation)
+    }
+
+    private fun hashFileDescriptor(
+        descriptor: ParcelFileDescriptor,
+        algorithmId: Int,
+        key: ByteArray?,
+        seed: Long,
+        hasSeed: Boolean,
+        operation: HashOperation?
+    ): String {
+        fun hashOpenDescriptor(openDescriptor: ParcelFileDescriptor): String {
+            operation?.throwIfCancelled()
+            val digest = ZigHasher.fileHashFd(
+                algorithmId,
+                openDescriptor.fd,
+                key,
+                seed,
+                hasSeed,
+                operation?.id
+            ) ?: throw IllegalStateException("Zig engine returned null digest")
+            operation?.throwIfCancelled()
+            return toHex(digest)
+        }
+
+        return if (operation != null) {
+            operation.useCloseable(descriptor) { openDescriptor ->
+                openDescriptor.use(::hashOpenDescriptor)
+            }
+        } else {
+            descriptor.use(::hashOpenDescriptor)
         }
     }
 

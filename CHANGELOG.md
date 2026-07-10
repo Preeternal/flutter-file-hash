@@ -1,5 +1,19 @@
 # Releases
 
+## 0.0.4
+
+* Hash Android `content://` URIs through `ContentResolver.openFileDescriptor`
+  and one `zfh_fd_hash` JNI call when the provider exposes an fd. Zig owns the
+  read loop but never closes the descriptor; Kotlin closes it after hashing.
+  Providers that expose only a stream retain the existing streaming fallback.
+* Add `fileHash(..., useMmap: true)` for stable regular local files. mmap stays
+  disabled by default and is ignored for Android `content://` descriptors.
+* Update the bundled `zig-files-hash` core to `v0.0.7` and C ABI v4, and
+  rebuild the native prebuilt matrix for the new ABI.
+* Document fd ownership, cancellation, stream fallback, and mmap constraints.
+
+---
+
 ## 0.0.3
 
 * Keep iOS and macOS XCFramework headers limited to the public C API headers

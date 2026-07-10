@@ -252,6 +252,69 @@ jint ExpectedApiVersion() {
     return static_cast<jint>(ZFH_API_VERSION);
 }
 
+bool FileHashFd(
+    JNIEnv *env,
+    jint algorithm_id,
+    jint fd,
+    bool has_key,
+    const std::vector<uint8_t> &key,
+    bool has_seed,
+    uint64_t seed,
+    const std::string &operation_id,
+    std::vector<uint8_t> *out_digest
+) {
+    if (fd < 0) {
+        filehash::jni::ThrowException(
+            env,
+            "java/lang/IllegalArgumentException",
+            "Invalid file descriptor"
+        );
+        return false;
+    }
+
+    PreparedRequest prepared{};
+    if (!PrepareRequest(env, algorithm_id, has_key, key, has_seed, seed, &prepared)) {
+        return false;
+    }
+
+    std::vector<uint8_t> digest(zfh_max_digest_length());
+    ZigOperationState operation{};
+    const bool has_operation = !operation_id.empty();
+
+    if (has_operation) {
+        zfh_error operation_error = ZFH_OK;
+        if (!InitOperationState(&operation, &operation_error)) {
+            return ThrowForZfhError(env, operation_error, "zfh_operation_init_inplace");
+        }
+        RegisterOperation(operation_id, &operation);
+    }
+
+    zfh_request request = BuildZfhRequest(prepared, has_operation ? &operation : nullptr);
+    const zfh_request *request_ptr =
+        (prepared.has_options || has_operation) ? &request : nullptr;
+    size_t written = 0;
+    const zfh_error code = zfh_fd_hash(
+        prepared.algorithm,
+        static_cast<int>(fd),
+        request_ptr,
+        digest.data(),
+        digest.size(),
+        &written
+    );
+
+    if (has_operation) {
+        UnregisterOperation(operation_id, &operation);
+    }
+
+    if (code != ZFH_OK) {
+        return ThrowForZfhError(env, code, "zfh_fd_hash");
+    }
+
+    digest.resize(written);
+    *out_digest = std::move(digest);
+    return true;
+}
+
 bool StreamHasherCreate(
     JNIEnv *env,
     jint algorithm_id,

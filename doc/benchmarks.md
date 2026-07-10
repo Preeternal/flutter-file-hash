@@ -4,6 +4,19 @@ These numbers are manual smoke benchmarks from the bundled example app. Treat
 them as rough device-local reference points, not as a stable cross-device
 performance contract.
 
+The example's benchmark JSON includes `useMmap`; record it with each run. mmap
+is disabled by default and should be compared only on stable local files.
+
+## mmap observations
+
+Local mmap measurements varied by workload. In the 200 MiB macOS Flutter
+release comparison, SHA and HMAC were roughly 2-4% faster, while BLAKE3 and
+XXH3-64 were slightly slower. Separate direct Zig-core measurements on a
+500 MiB file showed up to roughly 20% improvement for some algorithms.
+
+mmap remains disabled by default; benchmark the target device, file size,
+storage, and algorithm before enabling it.
+
 ## Apple A15, iOS Release, 2026-06-30
 
 - Device: physical Apple A15 device

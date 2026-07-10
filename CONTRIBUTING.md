@@ -43,11 +43,10 @@ Dart API
     -> zfh_hasher_init_inplace / update / final
   -> fileHash(content://...) on Android
     -> Android MethodChannel
-    -> Kotlin InputStream
+    -> Kotlin ParcelFileDescriptor
     -> JNI bridge
-    -> zfh_hasher_init_inplace
-    -> zfh_hasher_update
-    -> zfh_hasher_final
+    -> zfh_fd_hash
+      -> Zig reads and hashes the descriptor
 ```
 
 Do not read filesystem files in Dart chunks and call Zig once per chunk.
@@ -59,8 +58,11 @@ Raw byte one-shot helpers are intentionally not used for file hashing.
 
 Android is the only platform with a platform opener today. It is needed for
 `content://` inputs because `dart:io File` cannot open them. The Android path
-streams from `ContentResolver.openInputStream` into the same Zig hasher and must
-not copy URI data into a temporary file as part of normal hashing.
+opens a `ParcelFileDescriptor` through `ContentResolver` and hashes it in one
+`zfh_fd_hash` call. Zig never closes that descriptor. If a provider cannot
+expose an fd, the Android path falls back to `ContentResolver.openInputStream`
+and the existing streaming hasher; neither path may copy URI data into a
+temporary file.
 
 Provider-backed iOS/macOS URLs are not handled by a platform opener yet. Current
 Apple platform support is for normal filesystem paths through Dart FFI.
@@ -371,7 +373,8 @@ Android URI runtime check:
 - build and install the Android example;
 - pick or pass a real `content://` URI from the Android document picker once the
   example has picker UI;
-- verify that hashing streams from `ContentResolver` directly;
+- verify the fd fast path with a provider that supports `openFileDescriptor`;
+- verify the stream fallback with a provider that does not;
 - verify that no temporary copy is created as part of the hash path.
 
 iOS/macOS follow-up:

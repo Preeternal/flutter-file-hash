@@ -58,6 +58,7 @@ void main() {
 
       expect(await fileHash(file.path), stringHash('abc'));
       expect(await fileHash(file.uri.toString()), stringHash('abc'));
+      expect(await fileHash(file.path, useMmap: true), stringHash('abc'));
       expect(
         await fileHash(file.path, algorithm: HashAlgorithm.xxh3_64),
         stringHash('abc', algorithm: HashAlgorithm.xxh3_64),

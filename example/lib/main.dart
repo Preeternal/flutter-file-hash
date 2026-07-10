@@ -135,6 +135,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
   HashInputEncoding _textEncoding = HashInputEncoding.utf8;
   KeyEncoding _keyEncoding = KeyEncoding.utf8;
   _SeedInputMode _seedInputMode = _SeedInputMode.fromLabel;
+  bool _useMmap = false;
 
   _PickedFile? _pickedFile;
 
@@ -320,6 +321,29 @@ class _HashDemoPageState extends State<HashDemoPage> {
                       });
                     },
                   ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _useMmap,
+                  onChanged: _fileRunning || _benchmarkRunning
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _useMmap = value ?? false;
+                            _fileHash = '';
+                            _fileElapsedMs = null;
+                            _fileStatus = null;
+                            _benchmarkResults = const [];
+                            _benchmarkStatus = null;
+                          });
+                        },
+                  title: const Text('Use mmap for local files'),
+                  subtitle: Text(
+                    'Applies to Hash file and Benchmark. Use only stable local files; ignored for Android content:// URIs.',
+                    style: TextStyle(color: palette.muted),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -597,6 +621,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
         pickedFile.hashPath,
         algorithm: _selectedAlgorithm,
         hashOptions: _buildHashOptions(),
+        useMmap: _useMmap,
         cancellationToken: controller.token,
       );
       final elapsed = DateTime.now().difference(started).inMilliseconds;
@@ -712,6 +737,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
       min: 0,
       max: 5,
     );
+    final useMmap = _useMmap;
     final sizeBytes = sizeMiB * 1024 * 1024;
     final controller = HashCancellationController();
     final results = <_BenchmarkResult>[];
@@ -721,7 +747,8 @@ class _HashDemoPageState extends State<HashDemoPage> {
     setState(() {
       _benchmarkRunning = true;
       _benchmarkResults = const [];
-      _benchmarkStatus = 'Preparing $sizeMiB MiB file...';
+      _benchmarkStatus =
+          'Preparing $sizeMiB MiB file (${useMmap ? 'mmap' : 'stream'} I/O)...';
     });
 
     try {
@@ -753,6 +780,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
               file.path,
               algorithm: algorithm,
               hashOptions: _buildBenchmarkOptions(algorithm),
+              useMmap: useMmap,
               cancellationToken: controller.token,
             );
             final elapsed = DateTime.now().difference(started).inMilliseconds;
@@ -796,6 +824,7 @@ class _HashDemoPageState extends State<HashDemoPage> {
         'sizeMiB': sizeMiB,
         'samples': samples,
         'warmups': warmups,
+        'useMmap': useMmap,
         'algorithms': [
           for (final algorithm in _benchmarkAlgorithms) algorithm.label,
         ],
@@ -806,7 +835,8 @@ class _HashDemoPageState extends State<HashDemoPage> {
 
       if (mounted) {
         setState(() {
-          _benchmarkStatus = 'Benchmark complete';
+          _benchmarkStatus =
+              'Benchmark complete (${useMmap ? 'mmap' : 'stream'} I/O)';
         });
       }
     } on FlutterFileHashCancelledException {

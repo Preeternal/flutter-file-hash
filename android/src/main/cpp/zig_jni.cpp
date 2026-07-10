@@ -11,6 +11,38 @@ Java_com_preeternal_flutter_1file_1hash_ZigHasher_expectedApiVersion(JNIEnv *, j
     return filehash::zig::ExpectedApiVersion();
 }
 
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_preeternal_flutter_1file_1hash_ZigHasher_fileHashFd(
+    JNIEnv *env,
+    jobject,
+    jint algorithm_id,
+    jint fd,
+    jbyteArray key_j,
+    jlong seed_j,
+    jboolean has_seed_j,
+    jstring operation_id_j
+) {
+    const std::vector<uint8_t> key = filehash::jni::JByteArrayToVector(env, key_j);
+    const std::string operation_id = filehash::jni::JStringToUtf8(env, operation_id_j);
+    std::vector<uint8_t> digest;
+
+    if (!filehash::zig::FileHashFd(
+            env,
+            algorithm_id,
+            fd,
+            key_j != nullptr,
+            key,
+            has_seed_j == JNI_TRUE,
+            static_cast<uint64_t>(seed_j),
+            operation_id,
+            &digest
+        )) {
+        return nullptr;
+    }
+
+    return filehash::jni::MakeJavaByteArray(env, digest.data(), digest.size());
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_preeternal_flutter_1file_1hash_ZigHasher_streamHasherCreate(
     JNIEnv *env,

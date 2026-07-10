@@ -61,3 +61,6 @@ zig-out/
 third_party/zig-files-hash-prebuilt/
 native/build/
 native/out/
+
+# FVM Version Cache
+.fvm/

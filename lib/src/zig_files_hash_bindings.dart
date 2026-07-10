@@ -2,7 +2,7 @@ import 'dart:ffi' as ffi;
 
 const String zfhAssetId =
     'package:flutter_file_hash/src/zig_files_hash_bindings.dart';
-const int zfhApiVersionExpected = 3;
+const int zfhApiVersionExpected = 4;
 const int zfhOk = 0;
 const int zfhOptionHasSeed = 1 << 0;
 const int zfhOptionHasKey = 1 << 1;

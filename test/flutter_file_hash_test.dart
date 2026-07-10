@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 import 'package:flutter_file_hash/flutter_file_hash.dart';
 
 void main() {
-  test('maps algorithms exposed by zig-files-hash C ABI v3', () {
+  test('maps algorithms exposed by zig-files-hash C ABI v4', () {
     expect(HashAlgorithm.sha256.zigId, 1);
     expect(HashAlgorithm.blake3.zigId, 9);
     expect(HashAlgorithm.hmacSha256.zigId, 11);

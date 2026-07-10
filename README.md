@@ -293,7 +293,7 @@ final class HashOptions {
 | `BLAKE3` | Modern high-performance hash | Also supports keyed mode with a 32-byte key |
 
 `XXH3-128` is intentionally not exposed because it is not present in
-`zig-files-hash` C ABI v3.
+`zig-files-hash` C ABI v4.
 
 ### Output Lengths
 

@@ -9,9 +9,9 @@ is disabled by default and should be compared only on stable local files.
 
 ## mmap observations
 
-Local mmap measurements varied by workload. In the 200 MiB macOS Flutter
-release comparison, SHA and HMAC were roughly 2-4% faster, while BLAKE3 and
-XXH3-64 were slightly slower. Separate direct Zig-core measurements on a
+Local mmap measurements varied by workload. In 200 MiB Flutter release
+comparisons, results ranged from mixed low-single-digit changes to all recorded
+medians being roughly 2-11% faster. Separate direct Zig-core measurements on a
 500 MiB file showed up to roughly 20% improvement for some algorithms.
 
 mmap remains disabled by default; benchmark the target device, file size,

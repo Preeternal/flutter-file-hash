@@ -1,5 +1,21 @@
 # Releases
 
+## Unreleased
+
+### Changed
+
+* Pin development to Flutter 3.47.5 and update the minimum SDK constraints for
+  the current native-assets dependencies.
+* Use the pinned Flutter version in CI and verify the macOS Release build does
+  not report inconsistent code asset framework names.
+* Upgrade `code_assets`, `hooks`, and `ffigen`; move `test` to the newest
+  version compatible with the `flutter_test` SDK pin.
+* Raise the example app's macOS deployment target to 12.0 for Flutter 3.47.
+* Document how to compare this customized package with a freshly generated
+  `package_ffi` template while preserving Android `content://` support.
+
+---
+
 ## 0.0.4
 
 * Hash Android `content://` URIs through `ContentResolver.openFileDescriptor`

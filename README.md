@@ -376,12 +376,13 @@ directly and avoid that extra copy.
 
 ## FFI/native-assets Template Usage
 
-`flutter_file_hash` uses Flutter's modern `plugin_ffi`/native-assets path for
-the native hash core. The public Dart API talks to one Zig native core through
-the C ABI; platform code is used only where the operating system does not expose
-a regular file path to Dart.
+`flutter_file_hash` uses Flutter's `package_ffi` build-hook/native-assets path
+for the Zig hash core. Android also has a small Flutter plugin layer because
+`ContentResolver` is needed to open `content://` URIs. The public Dart API calls
+the same Zig C ABI on every platform.
 
-macOS release builds can print a native-assets packaging warning like:
+Flutter versions before 3.47.0 could print this warning during macOS release
+builds:
 
 ```text
 Code asset "package:flutter_file_hash/src/zig_files_hash_bindings.dart" has
@@ -389,14 +390,12 @@ different framework names for different architectures. Picking
 "zig_files_hash_c_api.framework" and ignoring "zig_files_hash_c_api1.framework".
 ```
 
-This comes from Flutter's macOS `code_assets` packaging path when it combines
-multiple architectures into one app bundle. The generated app bundle still
-contains the expected universal native framework, so the warning can be ignored.
+Flutter fixed multi-architecture code asset framework naming in 3.47.0
+([Flutter #185640](https://github.com/flutter/flutter/pull/185640)). A macOS
+Release build with Flutter 3.47.5 completed without this warning.
 
-The strategy is to keep `plugin_ffi`/native-assets for the Zig core and adopt
-upstream Flutter fixes when macOS native-assets packaging improves. Android
-platform code remains limited to opening provider URIs, as described in Android
-URI Streams.
+The Android plugin opens provider URIs and passes file descriptors or streams
+to the shared Zig core, as described in Android URI Streams.
 
 ## Performance
 
@@ -435,4 +434,5 @@ Contributions are welcome.
 
 MIT. See [LICENSE](LICENSE) for details.
 
-Built on Flutter's `plugin_ffi`/native-assets template.
+Built with Flutter's `package_ffi` build hooks and an Android plugin for
+`content://` access.

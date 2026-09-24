@@ -31,6 +31,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig
@@ -70,6 +71,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig
@@ -103,6 +105,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig
@@ -133,6 +136,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig
@@ -150,6 +154,17 @@ jobs:
           cd example
           flutter pub get
           flutter build macos --debug
+
+      - name: Build macOS example (Release)
+        run: |
+          set -o pipefail
+          cd example
+          build_log="$RUNNER_TEMP/flutter-macos-release.log"
+          flutter build macos --release 2>&1 | tee "$build_log"
+          if grep -Fq 'different framework names for different architectures' "$build_log"; then
+            echo 'Flutter reported inconsistent code asset framework names.' >&2
+            exit 1
+          fi
 
   build-linux:
     runs-on: ubuntu-latest
@@ -169,6 +184,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig
@@ -200,6 +216,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Setup Zig

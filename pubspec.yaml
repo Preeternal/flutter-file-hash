@@ -4,8 +4,8 @@ version: 0.0.4
 repository: https://github.com/Preeternal/flutter-file-hash
 
 environment:
-  sdk: ^3.12.2
-  flutter: '>=3.44.0'
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
 
 platforms:
   android:
@@ -15,18 +15,18 @@ platforms:
   windows:
 
 dependencies:
-  code_assets: ^1.2.1
+  code_assets: ^2.1.0
   ffi: ^2.1.4
   flutter:
     sdk: flutter
-  hooks: ^2.0.2
+  hooks: ^2.2.0
 
 dev_dependencies:
-  ffigen: ^20.1.1
+  ffigen: ^22.0.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  test: ^1.28.0
+  test: ^1.31.1
 
 flutter:
   plugin:

@@ -934,9 +934,8 @@ class _HashDemoPageState extends State<HashDemoPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -954,17 +953,14 @@ class _Header extends StatelessWidget {
         children: [
           Text(
             'File Hash',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: palette.text,
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(color: palette.text, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
           Text(
             'Native streaming hash (MD5 / SHA / XXH3 / BLAKE3)',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: palette.muted),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: palette.muted),
           ),
         ],
       ),
@@ -1005,10 +1001,8 @@ class _CardPanel extends StatelessWidget {
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: palette.text,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: palette.text, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             ...children,
@@ -1248,17 +1242,14 @@ class _FileDetails extends StatelessWidget {
       children: [
         Text(
           file.name,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: palette.text,
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: palette.text, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 4),
         SelectableText(
           '${_fileSizeLabel(file.size)} - ${file.displayPath}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: palette.muted),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: palette.muted),
         ),
       ],
     );
@@ -1285,9 +1276,8 @@ class _DigestResult extends StatelessWidget {
         children: [
           Text(
             'Result',
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: palette.muted),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: palette.muted),
           ),
           const SizedBox(height: 6),
           SelectableText(digest, style: _monoStyle(context, palette)),
@@ -1295,9 +1285,8 @@ class _DigestResult extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               _formatMs(elapsedMs),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: palette.muted),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: palette.muted),
             ),
           ],
         ],

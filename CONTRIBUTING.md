@@ -2,12 +2,42 @@
 
 ## Setup
 
-Use Flutter stable, Zig, and the platform SDKs for the targets you want to
-build. The CI Zig version is defined in
+Use the Flutter version in `.fvmrc`, Zig, and the platform SDKs for the targets
+you want to build. The CI Zig version is defined in
 `.github/actions/setup-zig/action.yml`.
 
 If you do not use FVM locally, replace `fvm flutter` and `fvm dart` with
 `flutter` and `dart`.
+
+## Flutter Template Updates
+
+The package starts from Flutter's `package_ffi` template, with a custom Zig
+build hook and an Android plugin layer for `content://` access. Flutter updates
+the templates inside each SDK release; there is no safe in-place command that
+merges every upstream template change into this customized package.
+
+To review a template update after changing the Flutter version in `.fvmrc`,
+generate a clean copy with the same package name. Compare only the relevant
+template files, not the entire repository (which also contains build outputs,
+prebuilts, and custom platform code):
+
+```bash
+template_dir="$(mktemp -d)"
+fvm flutter create --template=package_ffi --project-name flutter_file_hash \
+  --no-pub "$template_dir/flutter_file_hash"
+for file in pubspec.yaml analysis_options.yaml ffigen.yaml hook/build.dart \
+  example/pubspec.yaml example/analysis_options.yaml \
+  example/macos/Runner.xcodeproj/project.pbxproj; do
+  diff -u "$template_dir/flutter_file_hash/$file" "$file" || true
+done
+```
+
+Extend the file list when reviewing another platform's generated project.
+Keep the custom `hook/build.dart`, Android `FlutterFileHashPlugin`, JNI/CMake
+bridge, prebuilt layout, and handwritten FFI bindings intact unless the
+corresponding package behavior is deliberately being changed. `.metadata`
+records Flutter project metadata; it is not a general dependency or template
+synchronizer.
 
 Initialize the Zig submodule:
 

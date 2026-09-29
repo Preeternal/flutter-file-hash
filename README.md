@@ -2,6 +2,7 @@
 
 [![pub version](https://img.shields.io/pub/v/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash)
 [![pub downloads](https://img.shields.io/pub/dm/flutter_file_hash.svg)](https://pub.dev/packages/flutter_file_hash)
+[![Patreon](https://img.shields.io/endpoint?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%2F%3Fusername%3Dpreeternal%26type%3Dpatrons)](https://www.patreon.com/preeternal)
 
 Native streaming hashes for Flutter files, strings, HMAC, XXH3, and BLAKE3,
 powered by a shared Zig core.

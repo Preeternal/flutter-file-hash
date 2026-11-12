@@ -7,6 +7,9 @@
 - Updated the bundled Zig core to `zig-files-hash` `v0.0.8` / Zig `0.17.1`.
 - Removed the Apple static-library repacking workaround now that Zig emits correctly aligned Mach-O archives ([ziglang/zig#35984](https://codeberg.org/ziglang/zig/pulls/35984)).
 - Updated the Zig CI version and platform build scripts for the new core version. C ABI remains v4.
+- Adapted the iOS Simulator build hook to Flutter 3.50's stricter native asset
+  validation by extracting the requested architecture from the universal Zig
+  dylib.
 
 ### Example app
 

@@ -8,6 +8,17 @@
 - Removed the Apple static-library repacking workaround now that Zig emits correctly aligned Mach-O archives ([ziglang/zig#35984](https://codeberg.org/ziglang/zig/pulls/35984)).
 - Updated the Zig CI version and platform build scripts for the new core version. C ABI remains v4.
 
+### Example app
+
+- Migrated the example app from Flutter's deprecated Material import to the
+  standalone `material_ui` package recommended for Flutter 3.50.
+
+### CI / validation
+
+- Added target-platform hash smoke tests for Android, iOS, macOS, Linux, and
+  Windows. Each target verifies the reference SHA-256 digest through both
+  `stringHash` and `fileHash`.
+
 ---
 
 ## 0.0.5

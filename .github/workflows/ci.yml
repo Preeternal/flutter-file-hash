@@ -92,6 +92,23 @@ jobs:
           flutter pub get
           flutter build apk --debug
 
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Android hash smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          working-directory: example
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
+          script: flutter test integration_test/hash_smoke_test.dart -d emulator-5554
+
   build-ios:
     runs-on: macos-latest
 
@@ -122,6 +139,20 @@ jobs:
           cd example
           flutter pub get
           flutter build ios --debug --no-codesign
+
+      - name: Run iOS hash smoke test
+        run: |
+          set -euo pipefail
+          device_id="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')"
+          if [[ -z "${device_id}" ]]; then
+            echo 'No available iPhone Simulator found.' >&2
+            xcrun simctl list devices available >&2
+            exit 1
+          fi
+          xcrun simctl boot "${device_id}" 2>/dev/null || true
+          xcrun simctl bootstatus "${device_id}" -b
+          cd example
+          flutter test integration_test/hash_smoke_test.dart -d "${device_id}"
 
   build-macos:
     runs-on: macos-latest
@@ -166,6 +197,12 @@ jobs:
             exit 1
           fi
 
+      - name: Run macOS hash smoke test
+        run: |
+          flutter config --enable-macos-desktop
+          cd example
+          flutter test integration_test/hash_smoke_test.dart -d macos
+
   build-linux:
     runs-on: ubuntu-latest
 
@@ -178,7 +215,7 @@ jobs:
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -202,6 +239,11 @@ jobs:
           cd example
           flutter pub get
           flutter build linux --debug
+
+      - name: Run Linux hash smoke test
+        run: |
+          cd example
+          xvfb-run -a flutter test integration_test/hash_smoke_test.dart -d linux
 
   build-windows:
     runs-on: windows-latest
@@ -237,6 +279,12 @@ jobs:
           cd example
           flutter pub get
           flutter build windows --debug
+
+      - name: Run Windows hash smoke test
+        shell: pwsh
+        run: |
+          Set-Location example
+          flutter test integration_test/hash_smoke_test.dart -d windows
 
   verify-prebuilts:
     runs-on: macos-latest

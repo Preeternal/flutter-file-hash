@@ -32,30 +32,6 @@ if [[ ! -f "${ZIG_CORE_DIR}/build.zig" ]]; then
   exit 1
 fi
 
-repack_static_library() {
-  local input_lib="$1"
-  local output_lib="$2"
-  local work_dir
-  work_dir="$(mktemp -d)"
-
-  (
-    cd "${work_dir}"
-    xcrun ar -x "${input_lib}"
-
-    local objects=(*.o)
-    if [[ ! -e "${objects[0]}" ]]; then
-      echo "No object files found in ${input_lib}" >&2
-      exit 1
-    fi
-
-    chmod u+rw "${objects[@]}"
-    xcrun libtool -static -o "${output_lib}" "${objects[@]}"
-    xcrun ranlib "${output_lib}"
-  )
-
-  rm -rf "${work_dir}"
-}
-
 build_target() {
   local target="$1"
   local out_lib="$2"
@@ -70,7 +46,7 @@ build_target() {
       --prefix "${prefix_dir}"
   )
 
-  repack_static_library "${prefix_dir}/lib/libzig_files_hash_c_api_static.a" "${out_lib}"
+  cp "${prefix_dir}/lib/libzig_files_hash_c_api_static.a" "${out_lib}"
   rm -rf "${prefix_dir}"
 }
 

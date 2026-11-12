@@ -322,26 +322,29 @@ class _HashDemoPageState extends State<HashDemoPage> {
                     },
                   ),
                 const SizedBox(height: 8),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _useMmap,
-                  onChanged: _fileRunning || _benchmarkRunning
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _useMmap = value ?? false;
-                            _fileHash = '';
-                            _fileElapsedMs = null;
-                            _fileStatus = null;
-                            _benchmarkResults = const [];
-                            _benchmarkStatus = null;
-                          });
-                        },
-                  title: const Text('Use mmap for local files'),
-                  subtitle: Text(
-                    'Applies to Hash file and Benchmark. Use only stable local files; ignored for Android content:// URIs.',
-                    style: TextStyle(color: palette.muted),
+                Material(
+                  type: MaterialType.transparency,
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _useMmap,
+                    onChanged: _fileRunning || _benchmarkRunning
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _useMmap = value ?? false;
+                              _fileHash = '';
+                              _fileElapsedMs = null;
+                              _fileStatus = null;
+                              _benchmarkResults = const [];
+                              _benchmarkStatus = null;
+                            });
+                          },
+                    title: const Text('Use mmap for local files'),
+                    subtitle: Text(
+                      'Applies to Hash file and Benchmark. Use only stable local files; ignored for Android content:// URIs.',
+                      style: TextStyle(color: palette.muted),
+                    ),
                   ),
                 ),
               ],

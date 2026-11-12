@@ -1,6 +1,6 @@
 # Releases
 
-## 0.0.6 (Unreleased)
+## 0.0.6
 
 ### Changed
 
